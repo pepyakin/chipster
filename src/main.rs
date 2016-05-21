@@ -67,7 +67,11 @@ impl Chip8 {
             // Annn - LD I, addr
             let addr = instruction & 0x0FFF;
             self.i = addr;
-        } else {
+        } else if (instruction & 0xF000) == 0xD000 {
+            // Dxyn - DRW Vx, Vy, nibble
+            // TODO: Implement
+        } 
+        else {
             panic!("unrecognized instruction: {:#x}", instruction);
         }
         

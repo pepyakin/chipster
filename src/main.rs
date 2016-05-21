@@ -57,8 +57,11 @@ impl Chip8 {
     }
     
     fn execute_instruction(&mut self, instruction: u16) -> u16 {
-        let mut next_pc = self.pc + 2;        
-        if (instruction & 0xF000) == 0x1000 {
+        let mut next_pc = self.pc + 2;       
+        if instruction  == 0x00E0 {
+            // 00E0 - CLS
+            // TODO: Implement
+        } else if (instruction & 0xF000) == 0x1000 {
             // 1nnn - JP addr
             let addr = instruction & 0x0FFF;
             next_pc = addr;

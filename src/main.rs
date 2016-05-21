@@ -45,7 +45,7 @@ impl Chip8 {
             let second_byte = (*bin_data)[actual_pc + 1] as u16;
             let instruction = (first_byte << 8) | second_byte;
             
-            println!("0x{:0x}: 0x{:0x}", self.pc, instruction);
+            println!("{:04x}: {:04x}", self.pc, instruction);
             let next_pc = self.execute_instruction(instruction);
             self.pc = next_pc;
             
@@ -99,10 +99,10 @@ impl fmt::Debug for Chip8 {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         try!(writeln!(f, "Chip8 {{"));
         for i in 0..16 {
-            try!(writeln!(f, "  V{:0X}: {:0x}", i, self.gpr[i]));
+            try!(writeln!(f, "  V{:0X}: {:02x}", i, self.gpr[i]));
         }
-        try!(writeln!(f, "  pc: {:0x}", self.pc));
-        try!(writeln!(f, "  i : {:0x}", self.i));
+        try!(writeln!(f, "  PC: {:04x}", self.pc));
+        try!(writeln!(f, "  I : {:04x}", self.i));
         try!(writeln!(f, "}}"));
         
         Ok(())

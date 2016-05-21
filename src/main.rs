@@ -63,6 +63,11 @@ impl Chip8 {
             let dst_r = ((instruction & 0x0F00) >> 8) as usize;
             let imm = (instruction & 0x00FF) as u8;
             self.gpr[dst_r] = imm;
+        } else if (instruction & 0xF000) == 0x7000 {
+            // 7xkk - ADD Vx, byte
+            let dst_r = ((instruction & 0x0F00) >> 8) as usize;
+            let imm = (instruction & 0x00FF) as u8;
+            self.gpr[dst_r] = self.gpr[dst_r] + imm;
         } else if (instruction & 0xF000) == 0xA000 {
             // Annn - LD I, addr
             let addr = instruction & 0x0FFF;

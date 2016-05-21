@@ -98,6 +98,53 @@ impl Chip8 {
             let dst_r = ((instruction & 0x0F00) >> 8) as usize;
             let src_r = ((instruction & 0x00F0) >> 4) as usize;
             self.gpr[dst_r] = self.gpr[src_r];
+        } else if (instruction & 0xF00F) == 0x8001 {
+            // Set Vx = Vx OR Vy.
+            let dst_r = ((instruction & 0x0F00) >> 8) as usize;
+            let src_r = ((instruction & 0x00F0) >> 4) as usize;
+            self.gpr[dst_r] = self.gpr[dst_r] | self.gpr[src_r];
+        } else if (instruction & 0xF00F) == 0x8002 {
+            // 8xy2 - AND Vx, Vy
+            let dst_r = ((instruction & 0x0F00) >> 8) as usize;
+            let src_r = ((instruction & 0x00F0) >> 4) as usize;
+            self.gpr[dst_r] = self.gpr[dst_r] & self.gpr[src_r];
+        } else if (instruction & 0xF00F) == 0x8003 {
+            // 8xy3 - XOR Vx, Vy
+            let dst_r = ((instruction & 0x0F00) >> 8) as usize;
+            let src_r = ((instruction & 0x00F0) >> 4) as usize;
+            self.gpr[dst_r] = self.gpr[dst_r] ^ self.gpr[src_r];
+        } else if (instruction & 0xF00F) == 0x8004 {
+            // 8xy4 - ADD Vx, Vy
+            let dst_r = ((instruction & 0x0F00) >> 8) as usize;
+            let src_r = ((instruction & 0x00F0) >> 4) as usize;
+            let (v, o) = self.gpr[dst_r].overflowing_add(self.gpr[src_r]);
+            self.gpr[dst_r] = v;
+            self.gpr[0x0F] = if o { 1 } else { 0 }; 
+        } else if (instruction & 0xF00F) == 0x8005 {
+            // 8xy5 - SUB Vx, Vy
+            let dst_r = ((instruction & 0x0F00) >> 8) as usize;
+            let src_r = ((instruction & 0x00F0) >> 4) as usize;
+            let (v, o) = self.gpr[dst_r].overflowing_sub(self.gpr[src_r]);
+            assert_eq!(self.gpr[dst_r] > self.gpr[src_r], !o);
+            self.gpr[dst_r] = v;
+            self.gpr[0x0F] = if o { 0 } else { 1 };
+        } else if (instruction & 0xF00F) == 0x8006 {
+            // 8xy6 - SHR Vx {, Vy}
+            let dst_r = ((instruction & 0x0F00) >> 8) as usize;
+            self.gpr[0x0F] = self.gpr[dst_r] & 0x1;
+            self.gpr[dst_r] = self.gpr[dst_r] >> 1;
+        } else if (instruction & 0xF00F) == 0x8007 {
+            // 8xy7 - SUBN Vx, Vy
+            let dst_r = ((instruction & 0x0F00) >> 8) as usize;
+            let src_r = ((instruction & 0x00F0) >> 4) as usize;
+            let (v, o) = self.gpr[src_r].overflowing_sub(self.gpr[dst_r]);
+            self.gpr[dst_r] = v;
+            self.gpr[0x0F] = if o { 0 } else { 1 };
+        } else if (instruction & 0xF00F) == 0x800E {
+            // 8xyE - SHL Vx {, Vy}
+            let dst_r = ((instruction & 0x0F00) >> 8) as usize;
+            self.gpr[0x0F] = self.gpr[dst_r] >> 7;
+            self.gpr[dst_r] = self.gpr[dst_r] << 1;
         } else if (instruction & 0xF000) == 0xA000 {
             // Annn - LD I, addr
             let addr = instruction & 0x0FFF;

@@ -92,7 +92,7 @@ impl fmt::Debug for Chip8 {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         try!(writeln!(f, "Chip8 {{"));
         for i in 0..16 {
-            try!(writeln!(f, "  gpr{}: {:0x}", i, self.gpr[i]));
+            try!(writeln!(f, "  V{:0X}: {:0x}", i, self.gpr[i]));
         }
         try!(writeln!(f, "  pc: {:0x}", self.pc));
         try!(writeln!(f, "  i : {:0x}", self.i));

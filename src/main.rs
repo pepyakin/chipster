@@ -44,26 +44,27 @@ impl Chip8 {
             let second_byte = (*bin_data)[actual_pc + 1] as u16;
             let instruction = (first_byte << 8) | second_byte;
             
-            self.execute_instruction(instruction);
+            println!("0x{:0x}: 0x{:0x}", self.pc, instruction);
+            let next_pc = self.execute_instruction(instruction);
+            self.pc = next_pc;
             
-            println!("{:#?}", self);
+            println!("after: {:#?}", self);
         }
     }
     
-    fn execute_instruction(&mut self, instruction: u16) {
-        println!("0x{:0x}", instruction);
-        
+    fn execute_instruction(&mut self, instruction: u16) -> u16 {        
         if (instruction & 0xF000) == 0x1000 {
-            let destinationPC = instruction & 0x0FFF;
-            self.pc = destinationPC;
-            return
+            let dst_pc = instruction & 0x0FFF;
+            return dst_pc;
+        } else if (instruction & 0xF000) == 0x6000 {
+            let dst_r = ((instruction & 0x0F00) >> 8) as usize;
+            let imm = (instruction & 0x00FF) as u8;
+            self.gpr[dst_r] = imm;
         } else {
             panic!("unrecognized instruction: {:#x}", instruction);
         }
-    }
-    
-    fn read_gpr(&self, index: u8) -> u8 {
-        self.gpr[index as usize]
+        
+        self.pc + 2
     }
 }
 

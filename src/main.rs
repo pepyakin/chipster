@@ -23,8 +23,8 @@ struct Chip8 {
     memory: [u8; 4096],
     gpr: [u8; 16],
     
-    pc: u16
-    // TODO: I register
+    pc: u16,
+    i: u16
 }
 
 impl Chip8 {
@@ -32,7 +32,8 @@ impl Chip8 {
         Chip8 {
             memory: [0; 4096], // TODO: beware this stuff is going to be allocated on the stack
             gpr: [0; 16],
-            pc: 0x200
+            pc: 0x200,
+            i: 0 // TODO: Initial value?
         }
     }
     
@@ -54,12 +55,18 @@ impl Chip8 {
     
     fn execute_instruction(&mut self, instruction: u16) -> u16 {        
         if (instruction & 0xF000) == 0x1000 {
-            let dst_pc = instruction & 0x0FFF;
-            return dst_pc;
+            // 1nnn - JP addr
+            let addr = instruction & 0x0FFF;
+            return addr;
         } else if (instruction & 0xF000) == 0x6000 {
+            // 6xkk - LD Vx, byte
             let dst_r = ((instruction & 0x0F00) >> 8) as usize;
             let imm = (instruction & 0x00FF) as u8;
             self.gpr[dst_r] = imm;
+        } else if (instruction & 0xF000) == 0xA000 {
+            // Annn - LD I, addr
+            let addr = instruction & 0x0FFF;
+            self.i = addr;
         } else {
             panic!("unrecognized instruction: {:#x}", instruction);
         }

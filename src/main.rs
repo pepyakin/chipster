@@ -64,8 +64,7 @@ impl Chip8 {
         } else if instruction == 0x00EE {
             // 00EE - RET
             // TODO: Implement
-            let retaddr = self.stack[self.sp];
-            self.sp -= 1;
+            let retaddr = self.pop();
             next_pc = retaddr;
         } else if (instruction & 0xF000) == 0x1000 {
             // 1nnn - JP addr
@@ -74,8 +73,8 @@ impl Chip8 {
         } else if (instruction & 0xF000) == 0x2000 {
             // 2nnn - CALL addr
             let addr = instruction & 0x0FFF;
-            self.sp += 1;
-            self.stack[self.sp] = self.pc;
+            let pc = self.pc;
+            self.push(pc);
             next_pc = addr;
         } else if (instruction & 0xF000) == 0x3000 {
             // 3xkk - SE Vx, byte
@@ -119,6 +118,17 @@ impl Chip8 {
         }
         
         next_pc
+    }
+        
+    fn pop(&mut self) -> u16 {
+        let value = self.stack[self.sp];
+        self.sp -= 1;
+        value
+    }
+
+    fn push(&mut self, value: u16) {
+        self.sp += 1;
+        self.stack[self.sp] = value;
     }
 }
 

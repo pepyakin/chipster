@@ -124,6 +124,12 @@ impl fmt::Debug for Chip8 {
         }
         try!(writeln!(f, "  PC: {:04x}", self.pc));
         try!(writeln!(f, "  I : {:04x}", self.i));
+        try!(writeln!(f, "  SP: {:04x}", self.sp));
+        try!(writeln!(f, "  stack: ["));
+        for i in 0..self.sp {
+            try!(writeln!(f, "  {:01x}: {:04x}", i, self.stack[i as usize]));
+        }
+        try!(writeln!(f, "  ]"));
         try!(writeln!(f, "}}"));
         
         Ok(())

@@ -61,6 +61,12 @@ impl Chip8 {
         if instruction  == 0x00E0 {
             // 00E0 - CLS
             // TODO: Implement
+        } else if instruction == 0x00EE {
+            // 00EE - RET
+            // TODO: Implement
+            let retaddr = self.stack[self.sp];
+            self.sp -= 1;
+            next_pc = retaddr;
         } else if (instruction & 0xF000) == 0x1000 {
             // 1nnn - JP addr
             let addr = instruction & 0x0FFF;
@@ -69,7 +75,7 @@ impl Chip8 {
             // 2nnn - CALL addr
             let addr = instruction & 0x0FFF;
             self.sp += 1;
-            self.stack[self.sp] = addr;
+            self.stack[self.sp] = self.pc;
             next_pc = addr;
         } else if (instruction & 0xF000) == 0x3000 {
             // 3xkk - SE Vx, byte

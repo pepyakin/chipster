@@ -22,7 +22,8 @@ fn main() {
 struct Chip8 {
     memory: [u8; 4096],
     gpr: [u8; 16],
-    
+    stack: [u16; 16],
+    sp: usize,
     pc: u16,
     i: u16
 }
@@ -32,6 +33,8 @@ impl Chip8 {
         Chip8 {
             memory: [0; 4096], // TODO: beware this stuff is going to be allocated on the stack
             gpr: [0; 16],
+            stack: [0; 16],
+            sp: 0,
             pc: 0x200,
             i: 0 // TODO: Initial value?
         }
@@ -57,6 +60,12 @@ impl Chip8 {
         if (instruction & 0xF000) == 0x1000 {
             // 1nnn - JP addr
             let addr = instruction & 0x0FFF;
+            return addr;
+        } else if (instruction & 0xF000) == 0x2000 {
+            // 2nnn - CALL addr
+            let addr = instruction & 0x0FFF;
+            self.sp += 1;
+            self.stack[self.sp] = addr;
             return addr;
         } else if (instruction & 0xF000) == 0x3000 {
             // 3xkk - SE Vx, byte

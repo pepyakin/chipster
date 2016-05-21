@@ -97,6 +97,9 @@ impl Chip8 {
         } else if (instruction & 0xF000) == 0xD000 {
             // Dxyn - DRW Vx, Vy, nibble
             // TODO: Implement
+        } else if (instruction & 0xF0FF) == 0xE0A1 {
+            // ExA1 - SKNP Vx
+            // TODO: Implement
         } else if (instruction & 0xF0FF) == 0xF01E {
             // Fx1E - ADD I, Vx
             let dst_r = ((instruction & 0x0F00) >> 8) as usize;

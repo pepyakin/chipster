@@ -92,7 +92,7 @@ impl Chip8 {
             // 7xkk - ADD Vx, byte
             let dst_r = ((instruction & 0x0F00) >> 8) as usize;
             let imm = (instruction & 0x00FF) as u8;
-            self.gpr[dst_r] = self.gpr[dst_r] + imm;
+            self.gpr[dst_r] = self.gpr[dst_r].wrapping_add(imm);
         } else if (instruction & 0xF00F) == 0x8000 {
             // 8xy0 - LD Vx, Vy
             let dst_r = ((instruction & 0x0F00) >> 8) as usize;
@@ -111,7 +111,7 @@ impl Chip8 {
         } else if (instruction & 0xF0FF) == 0xF01E {
             // Fx1E - ADD I, Vx
             let dst_r = ((instruction & 0x0F00) >> 8) as usize;
-            self.i = self.i + (self.gpr[dst_r] as u16);
+            self.i = self.i.wrapping_add(self.gpr[dst_r] as u16);
         }
         else {
             panic!("unrecognized instruction: {:#x}", instruction);

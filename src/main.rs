@@ -75,7 +75,11 @@ impl Chip8 {
         } else if (instruction & 0xF000) == 0xD000 {
             // Dxyn - DRW Vx, Vy, nibble
             // TODO: Implement
-        } 
+        } else if (instruction & 0xF0FF) == 0xF01E {
+            // Fx1E - ADD I, Vx
+            let dst_r = ((instruction & 0x0F00) >> 8) as usize;
+            self.i = self.i + (self.gpr[dst_r] as u16);
+        }
         else {
             panic!("unrecognized instruction: {:#x}", instruction);
         }
@@ -91,6 +95,7 @@ impl fmt::Debug for Chip8 {
             try!(writeln!(f, "  gpr{}: {:0x}", i, self.gpr[i]));
         }
         try!(writeln!(f, "  pc: {:0x}", self.pc));
+        try!(writeln!(f, "  i : {:0x}", self.i));
         try!(writeln!(f, "}}"));
         
         Ok(())

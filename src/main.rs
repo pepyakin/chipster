@@ -56,23 +56,24 @@ impl Chip8 {
         }
     }
     
-    fn execute_instruction(&mut self, instruction: u16) -> u16 {        
+    fn execute_instruction(&mut self, instruction: u16) -> u16 {
+        let mut next_pc = self.pc + 2;        
         if (instruction & 0xF000) == 0x1000 {
             // 1nnn - JP addr
             let addr = instruction & 0x0FFF;
-            return addr;
+            next_pc = addr;
         } else if (instruction & 0xF000) == 0x2000 {
             // 2nnn - CALL addr
             let addr = instruction & 0x0FFF;
             self.sp += 1;
             self.stack[self.sp] = addr;
-            return addr;
+            next_pc = addr;
         } else if (instruction & 0xF000) == 0x3000 {
             // 3xkk - SE Vx, byte
             let dst_r = ((instruction & 0x0F00) >> 8) as usize;
             let imm = (instruction & 0x00FF) as u8;
             if self.gpr[dst_r] == imm {
-                return self.pc + 2 + 2
+                next_pc += 2;
             }
         } else if (instruction & 0xF000) == 0x6000 {
             // 6xkk - LD Vx, byte
@@ -105,7 +106,7 @@ impl Chip8 {
             panic!("unrecognized instruction: {:#x}", instruction);
         }
         
-        self.pc + 2
+        next_pc
     }
 }
 

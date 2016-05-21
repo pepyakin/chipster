@@ -74,7 +74,7 @@ impl Chip8 {
             // 2nnn - CALL addr
             let addr = instruction & 0x0FFF;
             let pc = self.pc;
-            self.push(pc);
+            self.push(next_pc);
             next_pc = addr;
         } else if (instruction & 0xF000) == 0x3000 {
             // 3xkk - SE Vx, byte

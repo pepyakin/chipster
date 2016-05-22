@@ -145,6 +145,13 @@ impl Chip8 {
             if self.gpr[dst_r] == imm {
                 next_pc += 2;
             }
+        } else if (instruction & 0xF000) == 0x4000 {
+            // 4xkk - SNE Vx, byte
+            let dst_r = ((instruction & 0x0F00) >> 8) as usize;
+            let imm = (instruction & 0x00FF) as u8;
+            if self.gpr[dst_r] != imm {
+                next_pc += 2;
+            }
         } else if (instruction & 0xF000) == 0x6000 {
             // 6xkk - LD Vx, byte
             let dst_r = ((instruction & 0x0F00) >> 8) as usize;

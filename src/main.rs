@@ -227,6 +227,15 @@ impl Chip8 {
             // Fx1E - ADD I, Vx
             let dst_r = ((instruction & 0x0F00) >> 8) as usize;
             self.i = self.i.wrapping_add(self.gpr[dst_r] as u16);
+        } else if (instruction & 0xF0FF) == 0xF033 {
+            // Fx33 - LD B, Vx
+            let fr = ((instruction & 0x0F00) >> 8) as usize;
+            let v = self.gpr[fr];
+            let i = self.i as usize;
+            
+            self.memory[i] = v / 100;
+            self.memory[i + 1] = (v / 10) % 10;
+            self.memory[i + 2] = (v % 100) % 10; 
         } else if (instruction & 0xF0FF) == 0xF065 {
             // Fx65 - LD Vx, [I]
             let dst_r = ((instruction & 0x0F00) >> 8) as usize;

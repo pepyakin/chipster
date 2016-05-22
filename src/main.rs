@@ -25,7 +25,8 @@ struct Chip8 {
     stack: [u16; 16],
     sp: usize,
     pc: u16,
-    i: u16
+    i: u16,
+    dt: u8
 }
 
 impl Chip8 {
@@ -36,7 +37,8 @@ impl Chip8 {
             stack: [0; 16],
             sp: 0,
             pc: 0x200,
-            i: 0 // TODO: Initial value?
+            i: 0, // TODO: Initial value?
+            dt: 0
         }
     }
     
@@ -199,6 +201,7 @@ impl fmt::Debug for Chip8 {
             try!(writeln!(f, "  {:01x}: {:04x}", i, self.stack[i as usize]));
         }
         try!(writeln!(f, "  ]"));
+        try!(writeln!(f, "  DT: {:02x}", self.dt));
         try!(writeln!(f, "}}"));
         
         Ok(())

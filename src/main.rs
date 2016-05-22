@@ -227,6 +227,14 @@ impl Chip8 {
             // Fx1E - ADD I, Vx
             let dst_r = ((instruction & 0x0F00) >> 8) as usize;
             self.i = self.i.wrapping_add(self.gpr[dst_r] as u16);
+        } else if (instruction & 0xF0FF) == 0xF065 {
+            // Fx65 - LD Vx, [I]
+            let dst_r = ((instruction & 0x0F00) >> 8) as usize;
+            let i = self.i as usize;
+            for offset in 0..dst_r {
+                self.gpr[offset] = self.memory[i + offset]; 
+            }
+            // TODO: Review
         }
         else {
             panic!("unrecognized instruction: {:#x}", instruction);

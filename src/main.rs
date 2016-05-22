@@ -232,6 +232,11 @@ impl Chip8 {
             // Fx1E - ADD I, Vx
             let dst_r = ((instruction & 0x0F00) >> 8) as usize;
             self.i = self.i.wrapping_add(self.gpr[dst_r] as u16);
+        } else if (instruction & 0xF0FF) == 0xF029 {
+            // Fx29 - LD F, Vx
+            let dst_r = ((instruction & 0x0F00) >> 8) as usize;
+            let v = self.gpr[dst_r];
+            self.i = FONT_MEMORY_OFFSET + v as u16 * 5;
         } else if (instruction & 0xF0FF) == 0xF033 {
             // Fx33 - LD B, Vx
             let fr = ((instruction & 0x0F00) >> 8) as usize;
@@ -274,6 +279,7 @@ impl fmt::Debug for Chip8 {
     }
 }
 
+const FONT_MEMORY_OFFSET: u16 = 0;
 const FONT_SPRITES: [u8; 80] = [
 	0xF0, 0x90, 0x90, 0x90, 0xF0, // 0
 	0x20, 0x60, 0x20, 0x20, 0x70, // 1

@@ -74,7 +74,8 @@ struct Chip8 {
     stack: Stack,
     pc: u16,
     i: u16,
-    dt: u8
+    dt: u8,
+    st: u8
 }
 
 impl Chip8 {
@@ -85,7 +86,8 @@ impl Chip8 {
             stack: Stack::new(),
             pc: 0x200,
             i: 0, // TODO: Initial value?
-            dt: 0
+            dt: 0,
+            st: 0
         };
         
         for i in 0..80 {
@@ -109,6 +111,9 @@ impl Chip8 {
             // TODO: This is terribly inaccurate approximation.
             if self.dt > 0 {
                 self.dt -= 1;
+            }
+            if self.st > 0 {
+                self.st -= 1;
             }
             
             // println!("after: {:#?}", self);
@@ -245,6 +250,10 @@ impl Chip8 {
             // Fx15 - LD DT, Vx
             let fr = ((instruction & 0x0F00) >> 8) as usize;
             self.dt = self.gpr[fr];
+        } else if (instruction & 0xF0FF) == 0xF018 {
+            // Fx18 - LD ST, Vx
+            let fr = ((instruction & 0x0F00) >> 8) as usize;
+            self.st = self.gpr[fr];
         } else if (instruction & 0xF0FF) == 0xF01E {
             // Fx1E - ADD I, Vx
             let dst_r = ((instruction & 0x0F00) >> 8) as usize;

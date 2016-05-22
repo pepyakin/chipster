@@ -54,6 +54,11 @@ impl Chip8 {
             let next_pc = self.execute_instruction(instruction);
             self.pc = next_pc;
             
+            // TODO: This is terribly inaccurate approximation.
+            if (self.dt > 0) {
+                self.dt -= 1;
+            }
+            
             println!("after: {:#?}", self);
         }
     }

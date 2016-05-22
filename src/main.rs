@@ -169,6 +169,10 @@ impl Chip8 {
             // Fx07 - LD Vx, DT
             let fr = ((instruction & 0x0F00) >> 8) as usize;
             self.gpr[fr] = self.dt;
+        } else if (instruction & 0xF0FF) == 0xF00A {
+            // Fx0A - LD Vx, K
+            let fr = ((instruction & 0x0F00) >> 8) as usize;
+            self.gpr[fr] = 0; // TODO: Wait for actual keyboard input. 
         } else if (instruction & 0xF0FF) == 0xF015 {
             // Fx15 - LD DT, Vx
             let fr = ((instruction & 0x0F00) >> 8) as usize;

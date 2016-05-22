@@ -19,11 +19,55 @@ fn main() {
     chip8.execute(bin_data);
 }
 
+struct Stack {
+    sp: usize,
+    frames: [u16; 16]
+}
+
+impl Stack {
+    fn new() -> Stack {
+        Stack {
+            sp: 0,
+            frames: [0; 16]
+        }
+    }
+    
+    fn pop(&mut self) -> u16 {
+        let value = self.frames[self.sp];
+        self.sp -= 1;
+        value
+    }
+
+    fn push(&mut self, value: u16) {
+        let new_sp = self.sp + 1;
+        if new_sp > 15 {
+            panic!("stackoverflow! stack: {:?}", self.frames);
+        }
+        
+        self.sp = new_sp;
+        self.frames[new_sp] = value;
+    }
+}
+
+impl fmt::Debug for Stack {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        try!(writeln!(f, "Stack {{"));
+        try!(writeln!(f, "["));
+        for i in 0..(self.sp + 1) {
+            try!(writeln!(f, "    {:01x}: {:04x}", i, self.frames[i as usize]));
+        }
+        try!(writeln!(f, "]"));
+        try!(writeln!(f, "  SP: {:04x} ({})", self.sp, self.sp));
+        try!(writeln!(f, "}}"));
+        
+        Ok(())
+    }
+}
+
 struct Chip8 {
     memory: [u8; 4096],
     gpr: [u8; 16],
-    stack: [u16; 16],
-    sp: usize,
+    stack: Stack,
     pc: u16,
     i: u16,
     dt: u8
@@ -34,8 +78,7 @@ impl Chip8 {
         Chip8 {
             memory: [0; 4096], // TODO: beware this stuff is going to be allocated on the stack
             gpr: [0; 16],
-            stack: [0; 16],
-            sp: 0,
+            stack: Stack::new(),
             pc: 0x200,
             i: 0, // TODO: Initial value?
             dt: 0
@@ -55,11 +98,11 @@ impl Chip8 {
             self.pc = next_pc;
             
             // TODO: This is terribly inaccurate approximation.
-            if (self.dt > 0) {
+            if self.dt > 0 {
                 self.dt -= 1;
             }
             
-            println!("after: {:#?}", self);
+            // println!("after: {:#?}", self);
         }
     }
     
@@ -70,9 +113,10 @@ impl Chip8 {
             // TODO: Implement
         } else if instruction == 0x00EE {
             // 00EE - RET
-            // TODO: Implement
-            let retaddr = self.pop();
+            let retaddr = self.stack.pop();
             next_pc = retaddr;
+            
+            println!("RET to {:0x}@ PC:{:0x}", retaddr, self.pc);
         } else if (instruction & 0xF000) == 0x1000 {
             // 1nnn - JP addr
             let addr = instruction & 0x0FFF;
@@ -81,8 +125,10 @@ impl Chip8 {
             // 2nnn - CALL addr
             let addr = instruction & 0x0FFF;
             let pc = self.pc;
-            self.push(next_pc);
+            self.stack.push(next_pc);
             next_pc = addr;
+            
+            println!("CALL {:0x} @ PC:{:0x}, stack: {:#?}", addr, self.pc, self.stack);
         } else if (instruction & 0xF000) == 0x3000 {
             // 3xkk - SE Vx, byte
             let dst_r = ((instruction & 0x0F00) >> 8) as usize;
@@ -188,17 +234,6 @@ impl Chip8 {
         
         next_pc
     }
-        
-    fn pop(&mut self) -> u16 {
-        let value = self.stack[self.sp];
-        self.sp -= 1;
-        value
-    }
-
-    fn push(&mut self, value: u16) {
-        self.sp += 1;
-        self.stack[self.sp] = value;
-    }
 }
 
 impl fmt::Debug for Chip8 {
@@ -209,12 +244,7 @@ impl fmt::Debug for Chip8 {
         }
         try!(writeln!(f, "  PC: {:04x}", self.pc));
         try!(writeln!(f, "  I : {:04x}", self.i));
-        try!(writeln!(f, "  SP: {:04x}", self.sp));
-        try!(writeln!(f, "  stack: ["));
-        for i in 0..self.sp {
-            try!(writeln!(f, "  {:01x}: {:04x}", i, self.stack[i as usize]));
-        }
-        try!(writeln!(f, "  ]"));
+        try!(writeln!(f, "  stack: {:#?}", self.stack));
         try!(writeln!(f, "  DT: {:02x}", self.dt));
         try!(writeln!(f, "}}"));
         

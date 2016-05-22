@@ -1,8 +1,12 @@
+extern crate rand;
+
 use std::path::Path;
 use std::io::Read;
 use std::fs::File;
 use std::env;
 use std::fmt;
+
+use rand::Rng;
 
 fn read_bin<P: AsRef<Path>>(path: P) -> Box<[u8]> {
     let mut bin_file = File::open(path).unwrap();
@@ -207,6 +211,12 @@ impl Chip8 {
             // Annn - LD I, addr
             let addr = instruction & 0x0FFF;
             self.i = addr;
+        } else if (instruction & 0xF000) == 0xC000 {
+            // Cxkk - RND Vx, byte
+            let fr = ((instruction & 0x0F00) >> 8) as usize;
+            let imm = (instruction & 0x00FF) as u8;
+            let random_byte = rand::thread_rng().gen::<u8>();
+            self.gpr[fr] = random_byte & imm;
         } else if (instruction & 0xF000) == 0xD000 {
             // Dxyn - DRW Vx, Vy, nibble
             // TODO: Implement

@@ -152,6 +152,9 @@ impl Chip8 {
         } else if (instruction & 0xF000) == 0xD000 {
             // Dxyn - DRW Vx, Vy, nibble
             // TODO: Implement
+        } else if (instruction & 0xF0FF) == 0xE09E {
+            // Ex9E - SKP Vx
+            // TODO: Implement
         } else if (instruction & 0xF0FF) == 0xE0A1 {
             // ExA1 - SKNP Vx
             // TODO: Implement

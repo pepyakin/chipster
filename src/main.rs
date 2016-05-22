@@ -279,7 +279,7 @@ impl Chip8 {
             for offset in 0..dst_r {
                 self.gpr[offset] = self.memory[i + offset]; 
             }
-            // TODO: Review
+            self.i += dst_r as u16 + 1;
         }
         else {
             panic!("unrecognized instruction: {:#x}", instruction);

@@ -213,11 +213,16 @@ impl Chip8 {
             self.gpr[dst_r] = self.gpr[dst_r] >> 1;
         } else if (instruction & 0xF00F) == 0x8007 {
             // 8xy7 - SUBN Vx, Vy
-            let dst_r = ((instruction & 0x0F00) >> 8) as usize;
-            let src_r = ((instruction & 0x00F0) >> 4) as usize;
-            let (v, o) = self.gpr[src_r].overflowing_sub(self.gpr[dst_r]);
-            self.gpr[dst_r] = v;
-            self.gpr[0x0F] = if o { 0 } else { 1 };
+            let vx = ((instruction & 0x0F00) >> 8) as usize;
+            let vy = ((instruction & 0x00F0) >> 4) as usize;
+            
+            let minuend = self.gpr[vx as usize];
+            let subtrahend = self.gpr[vy as usize];
+            
+            let (v, borrow) = subtrahend.overflowing_sub(minuend);
+            
+            self.gpr[vx] = v;
+            self.gpr[VF] = if borrow { 0 } else { 1 };
         } else if (instruction & 0xF00F) == 0x800E {
             // 8xyE - SHL Vx {, Vy}
             let dst_r = ((instruction & 0x0F00) >> 8) as usize;
@@ -343,7 +348,7 @@ fn op_sub_eq() {
     chip8.execute_instruction(0x8125); // SUB V1, V2
     
     let result = chip8.gpr[0x01];
-    let borrowing = chip8.gpr[0x0F];  
+    let borrowing = chip8.gpr[VF];  
     
     assert_eq!(result, 0);
     assert_eq!(borrowing, BORROWING_NOT_OCCURED); 
@@ -358,7 +363,7 @@ fn op_sub_normal() {
     chip8.execute_instruction(0x8125); // SUB V1, V2
     
     let result = chip8.gpr[0x01];
-    let borrowing = chip8.gpr[0x0F];  
+    let borrowing = chip8.gpr[VF];  
     
     assert_eq!(result, 5);
     assert_eq!(borrowing, BORROWING_NOT_OCCURED);
@@ -373,7 +378,52 @@ fn op_sub_borrow() {
     chip8.execute_instruction(0x8125); // SUB V1, V2
     
     let result = chip8.gpr[0x01];
-    let borrowing = chip8.gpr[0x0F];  
+    let borrowing = chip8.gpr[VF];  
+    
+    assert_eq!(result, -5i8 as u8);
+    assert_eq!(borrowing, BORROWING_OCCURED);
+}
+
+#[test]
+fn op_subn_eq() {
+    let mut chip8 = Chip8::new();
+    
+    chip8.execute_instruction(0x6105); // LD   V1,  5
+    chip8.execute_instruction(0x6205); // LD   V2,  5
+    chip8.execute_instruction(0x8127); // SUBN V1, V2
+    
+    let result = chip8.gpr[0x01];
+    let borrowing = chip8.gpr[VF];
+    
+    assert_eq!(result, 0);
+    assert_eq!(borrowing, BORROWING_NOT_OCCURED);   
+}
+
+#[test]
+fn op_subn_normal() {
+    let mut chip8 = Chip8::new();
+    
+    chip8.execute_instruction(0x6105); // LD   V1,  5
+    chip8.execute_instruction(0x620A); // LD   V2, 10
+    chip8.execute_instruction(0x8127); // SUBN V1, V2
+    
+    let result = chip8.gpr[0x01];
+    let borrowing = chip8.gpr[VF];
+    
+    assert_eq!(result, 5);
+    assert_eq!(borrowing, BORROWING_NOT_OCCURED);
+}
+
+#[test]
+fn op_subn_borrow() {
+    let mut chip8 = Chip8::new();
+        
+    chip8.execute_instruction(0x610A); // LD   V1, 10
+    chip8.execute_instruction(0x6205); // LD   V2,  5
+    chip8.execute_instruction(0x8127); // SUBN V1, V2
+    
+    let result = chip8.gpr[0x01];
+    let borrowing = chip8.gpr[VF];
     
     assert_eq!(result, -5i8 as u8);
     assert_eq!(borrowing, BORROWING_OCCURED);

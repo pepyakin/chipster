@@ -335,7 +335,7 @@ const BORROWING_OCCURED: u8 = 0x00;
 const BORROWING_NOT_OCCURED: u8 = 0x01;
 
 #[test]
-fn op_subn_eq() {
+fn op_sub_eq() {
     let mut chip8 = Chip8::new();
     
     chip8.execute_instruction(0x6105); // LD  V1,  5
@@ -350,7 +350,7 @@ fn op_subn_eq() {
 }
 
 #[test]
-fn op_subn_normal() {
+fn op_sub_normal() {
     let mut chip8 = Chip8::new();
     
     chip8.execute_instruction(0x610A); // LD  V1, 10
@@ -365,7 +365,7 @@ fn op_subn_normal() {
 }
 
 #[test]
-fn op_subn_borrow() {
+fn op_sub_borrow() {
     let mut chip8 = Chip8::new();
     
     chip8.execute_instruction(0x6105); // LD  V1,  5

@@ -199,7 +199,7 @@ impl Chip8 {
             let dst_r = ((instruction & 0x0F00) >> 8) as usize;
             let src_r = ((instruction & 0x00F0) >> 4) as usize;
             let (v, o) = self.gpr[dst_r].overflowing_sub(self.gpr[src_r]);
-            assert_eq!(self.gpr[dst_r] > self.gpr[src_r], !o);
+            assert!((self.gpr[dst_r] > self.gpr[src_r]) == !o, "V{:0X}={:02X} > V{:0X}={:02X}, o={}", dst_r, self.gpr[dst_r], src_r, self.gpr[src_r], o);
             self.gpr[dst_r] = v;
             self.gpr[0x0F] = if o { 0 } else { 1 };
         } else if (instruction & 0xF00F) == 0x8006 {
@@ -324,3 +324,18 @@ const FONT_SPRITES: [u8; 80] = [
 	0xF0, 0x80, 0xF0, 0x80, 0xF0, // E
 	0xF0, 0x80, 0xF0, 0x80, 0x80, // F
 ];
+
+#[test]
+fn op_subn_eq() {
+    let mut chip8 = Chip8::new();
+    
+    chip8.execute_instruction(0x6105); // LD  V1,  5
+    chip8.execute_instruction(0x6205); // LD  V2,  5
+    chip8.execute_instruction(0x8125); // SUB V1, V2
+    
+    let result = chip8.gpr[0x01];
+    let borrowing = chip8.gpr[0x0F];  
+    
+    assert_eq!(result, 0);
+    assert_eq!(borrowing, 0); 
+}

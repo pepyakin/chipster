@@ -27,7 +27,7 @@ fn main() {
     chip8.execute(bin_data);
 }
 
-struct Chip8 {
+pub struct Chip8 {
     memory: [u8; 4096],
     gpr: [u8; 16],
     stack: Stack,
@@ -38,7 +38,7 @@ struct Chip8 {
 }
 
 impl Chip8 {
-    fn new() -> Chip8 {
+    pub fn new() -> Chip8 {
         let mut chip8 = Chip8 {
             memory: [0; 4096], // TODO: beware this stuff is going to be allocated on the stack
             gpr: [0; 16],
@@ -293,97 +293,100 @@ const FONT_SPRITES: [u8; 80] = [
 	0xF0, 0x80, 0xF0, 0x80, 0x80, // F
 ];
 
-const VF: usize = 0x0F;
+pub const VF: usize = 0x0F;
 
-const BORROWING_OCCURED: u8 = 0x00;
-const BORROWING_NOT_OCCURED: u8 = 0x01;
-
-#[test]
-fn op_sub_eq() {
-    let mut chip8 = Chip8::new();
+#[cfg(test)]
+mod test {
+    use super::*;
     
-    chip8.execute_instruction(0x6105); // LD  V1,  5
-    chip8.execute_instruction(0x6205); // LD  V2,  5
-    chip8.execute_instruction(0x8125); // SUB V1, V2
+    impl Chip8 {
+        fn is_borrow_bit_set(&self) -> bool {
+            self.gpr[VF] == 0x00
+        }
+    }
     
-    let result = chip8.gpr[0x01];
-    let borrowing = chip8.gpr[VF];  
-    
-    assert_eq!(result, 0);
-    assert_eq!(borrowing, BORROWING_NOT_OCCURED); 
-}
-
-#[test]
-fn op_sub_normal() {
-    let mut chip8 = Chip8::new();
-    
-    chip8.execute_instruction(0x610A); // LD  V1, 10
-    chip8.execute_instruction(0x6205); // LD  V2,  5
-    chip8.execute_instruction(0x8125); // SUB V1, V2
-    
-    let result = chip8.gpr[0x01];
-    let borrowing = chip8.gpr[VF];  
-    
-    assert_eq!(result, 5);
-    assert_eq!(borrowing, BORROWING_NOT_OCCURED);
-}
-
-#[test]
-fn op_sub_borrow() {
-    let mut chip8 = Chip8::new();
-    
-    chip8.execute_instruction(0x6105); // LD  V1,  5
-    chip8.execute_instruction(0x620A); // LD  V2, 10
-    chip8.execute_instruction(0x8125); // SUB V1, V2
-    
-    let result = chip8.gpr[0x01];
-    let borrowing = chip8.gpr[VF];  
-    
-    assert_eq!(result, -5i8 as u8);
-    assert_eq!(borrowing, BORROWING_OCCURED);
-}
-
-#[test]
-fn op_subn_eq() {
-    let mut chip8 = Chip8::new();
-    
-    chip8.execute_instruction(0x6105); // LD   V1,  5
-    chip8.execute_instruction(0x6205); // LD   V2,  5
-    chip8.execute_instruction(0x8127); // SUBN V1, V2
-    
-    let result = chip8.gpr[0x01];
-    let borrowing = chip8.gpr[VF];
-    
-    assert_eq!(result, 0);
-    assert_eq!(borrowing, BORROWING_NOT_OCCURED);   
-}
-
-#[test]
-fn op_subn_normal() {
-    let mut chip8 = Chip8::new();
-    
-    chip8.execute_instruction(0x6105); // LD   V1,  5
-    chip8.execute_instruction(0x620A); // LD   V2, 10
-    chip8.execute_instruction(0x8127); // SUBN V1, V2
-    
-    let result = chip8.gpr[0x01];
-    let borrowing = chip8.gpr[VF];
-    
-    assert_eq!(result, 5);
-    assert_eq!(borrowing, BORROWING_NOT_OCCURED);
-}
-
-#[test]
-fn op_subn_borrow() {
-    let mut chip8 = Chip8::new();
+    #[test]
+    fn op_sub_eq() {
+        let mut chip8 = Chip8::new();
         
-    chip8.execute_instruction(0x610A); // LD   V1, 10
-    chip8.execute_instruction(0x6205); // LD   V2,  5
-    chip8.execute_instruction(0x8127); // SUBN V1, V2
+        chip8.execute_instruction(0x6105); // LD  V1,  5
+        chip8.execute_instruction(0x6205); // LD  V2,  5
+        chip8.execute_instruction(0x8125); // SUB V1, V2
+        
+        let result = chip8.gpr[0x01];
+        let borrowed = chip8.is_borrow_bit_set();  
+        
+        assert_eq!(result, 0);
+        assert_eq!(borrowed, false); 
+    }
     
-    let result = chip8.gpr[0x01];
-    let borrowing = chip8.gpr[VF];
+    #[test]
+    fn op_sub_normal() {
+        let mut chip8 = Chip8::new();
+        
+        chip8.execute_instruction(0x610A); // LD  V1, 10
+        chip8.execute_instruction(0x6205); // LD  V2,  5
+        chip8.execute_instruction(0x8125); // SUB V1, V2
+        
+        let result = chip8.gpr[0x01];  
+        
+        assert_eq!(result, 5);
+        assert_eq!(chip8.is_borrow_bit_set(), false);
+    }
     
-    assert_eq!(result, -5i8 as u8);
-    assert_eq!(borrowing, BORROWING_OCCURED);
+    #[test]
+    fn op_sub_borrow() {
+        let mut chip8 = Chip8::new();
+        
+        chip8.execute_instruction(0x6105); // LD  V1,  5
+        chip8.execute_instruction(0x620A); // LD  V2, 10
+        chip8.execute_instruction(0x8125); // SUB V1, V2
+        
+        let result = chip8.gpr[0x01];  
+        
+        assert_eq!(result, -5i8 as u8);
+        assert_eq!(chip8.is_borrow_bit_set(), true);
+    }
+    
+    #[test]
+    fn op_subn_eq() {
+        let mut chip8 = Chip8::new();
+        
+        chip8.execute_instruction(0x6105); // LD   V1,  5
+        chip8.execute_instruction(0x6205); // LD   V2,  5
+        chip8.execute_instruction(0x8127); // SUBN V1, V2
+        
+        let result = chip8.gpr[0x01];
+        
+        assert_eq!(result, 0);
+        assert_eq!(chip8.is_borrow_bit_set(), false);   
+    }
+    
+    #[test]
+    fn op_subn_normal() {
+        let mut chip8 = Chip8::new();
+        
+        chip8.execute_instruction(0x6105); // LD   V1,  5
+        chip8.execute_instruction(0x620A); // LD   V2, 10
+        chip8.execute_instruction(0x8127); // SUBN V1, V2
+        
+        let result = chip8.gpr[0x01];
+        
+        assert_eq!(result, 5);
+        assert_eq!(chip8.is_borrow_bit_set(), false);
+    }
+    
+    #[test]
+    fn op_subn_borrow() {
+        let mut chip8 = Chip8::new();
+            
+        chip8.execute_instruction(0x610A); // LD   V1, 10
+        chip8.execute_instruction(0x6205); // LD   V2,  5
+        chip8.execute_instruction(0x8127); // SUBN V1, V2
+        
+        let result = chip8.gpr[0x01];
+        
+        assert_eq!(result, -5i8 as u8);
+        assert_eq!(chip8.is_borrow_bit_set(), true);
+    }
 }

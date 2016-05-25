@@ -272,6 +272,14 @@ impl Chip8 {
             self.memory[i] = v / 100;
             self.memory[i + 1] = (v / 10) % 10;
             self.memory[i + 2] = (v % 100) % 10; 
+        } else if (instruction & 0xF0FF) == 0xF055 {
+            // Fx55 - LD [I], Vx
+            let vx = parsed.x_reg();
+            let i = self.i as usize;
+            for offset in 0..(vx+1) {
+                self.memory[i + offset] = self.gpr[offset]; 
+            }
+            self.i += vx as u16 + 1;
         } else if (instruction & 0xF0FF) == 0xF065 {
             // Fx65 - LD Vx, [I]
             let vx = parsed.x_reg();

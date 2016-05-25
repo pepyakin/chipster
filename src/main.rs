@@ -290,7 +290,7 @@ impl Chip8 {
             self.i += vx as u16 + 1;
         }
         else {
-            panic!("unrecognized instruction: {:#x}", instruction);
+            panic!("unrecognized instruction: 0x{:04x}", instruction);
         }
         
         next_pc

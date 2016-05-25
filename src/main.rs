@@ -284,7 +284,7 @@ impl Chip8 {
             // Fx65 - LD Vx, [I]
             let vx = parsed.x_reg();
             let i = self.i as usize;
-            for offset in 0..vx {
+            for offset in 0..(vx+1) {
                 self.gpr[offset] = self.memory[i + offset]; 
             }
             self.i += vx as u16 + 1;

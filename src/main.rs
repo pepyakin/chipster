@@ -349,6 +349,34 @@ mod test {
     }
     
     #[test]
+    fn op_shr_shifted_1() {
+        let mut chip8 = Chip8::new();
+        
+        chip8.execute_instruction(0x6103); // LD   V1, 0b0000_0011
+        chip8.execute_instruction(0x8216); // SHR  V2, V1
+        
+        let result = chip8.gpr[0x02];
+        let shifted_bit = chip8.gpr[VF];
+        
+        assert_eq!(result, 1);
+        assert_eq!(shifted_bit, 1);
+    }
+    
+    #[test]
+    fn op_shr_shifted_0() {
+        let mut chip8 = Chip8::new();
+        
+        chip8.execute_instruction(0x6106); // LD   V1, 0b0000_0110
+        chip8.execute_instruction(0x8216); // SHR  V2, V1
+        
+        let result = chip8.gpr[0x02];
+        let shifted_bit = chip8.gpr[VF];
+        
+        assert_eq!(result, 3);
+        assert_eq!(shifted_bit, 0);
+    }
+    
+    #[test]
     fn op_subn_eq() {
         let mut chip8 = Chip8::new();
         
@@ -388,5 +416,33 @@ mod test {
         
         assert_eq!(result, -5i8 as u8);
         assert_eq!(chip8.is_borrow_bit_set(), true);
+    }
+    
+    #[test]
+    fn op_shl_shifted_1() {
+        let mut chip8 = Chip8::new();
+        
+        chip8.execute_instruction(0x61C0); // LD   V1, 0b1100_0000
+        chip8.execute_instruction(0x821E); // SHL  V2, V1
+        
+        let result = chip8.gpr[0x02];
+        let shifted_bit = chip8.gpr[VF];
+        
+        assert_eq!(result, 0x80);
+        assert_eq!(shifted_bit, 1);
+    }
+    
+    #[test]
+    fn op_shl_shifted_0() {
+        let mut chip8 = Chip8::new();
+        
+        chip8.execute_instruction(0x6160); // LD   V1, 0b0110_0000
+        chip8.execute_instruction(0x821E); // SHL  V2, V1
+        
+        let result = chip8.gpr[0x02];
+        let shifted_bit = chip8.gpr[VF];
+        
+        assert_eq!(result, 0xC0);
+        assert_eq!(shifted_bit, 0);
     }
 }

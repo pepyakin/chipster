@@ -212,6 +212,13 @@ impl Chip8 {
             
             self.gpr[VF] = self.gpr[vy] >> 7;
             self.gpr[vx] = self.gpr[vy] << 1;
+        } else if (instruction & 0xF000) == 0x9000 {
+            // 9xy0 - SNE Vx, Vy
+            let vx = parsed.x_reg();
+            let vy = parsed.y_reg();
+            if self.gpr[vx] != self.gpr[vy] {
+                next_pc += 1;
+            }
         } else if (instruction & 0xF000) == 0xA000 {
             // Annn - LD I, addr
             let addr = parsed.nnn();

@@ -65,33 +65,23 @@ impl Chip8 {
 
         chip8
     }
-
-    pub fn execute<F>(&mut self) {
-        loop {
-            let cycle_start = SystemTime::now();
-
-            let instruction = {
-                let actual_pc = self.pc as usize;
-                let first_byte = self.memory[actual_pc] as u16;
-                let second_byte = self.memory[actual_pc + 1] as u16;
-                (first_byte << 8) | second_byte
-            };
-
-            println!("{:04x}: {:04x}", self.pc, instruction);
-            let next_pc = self.execute_instruction(instruction);
-            self.pc = next_pc;
-
-            match cycle_start.elapsed() {
-                Ok(elapsed) => {
-                    let dt: f64 = {
-                        (elapsed.subsec_nanos() as f64 / 1e9) + elapsed.as_secs() as f64
-                    };
-                    self.dt.step(dt);
-                    self.st.step(dt);
-                }
-                Err(_) => {}
-            }
-        }
+    
+    pub fn cycle(&mut self) {
+        let instruction = {
+            let actual_pc = self.pc as usize;
+            let first_byte = self.memory[actual_pc] as u16;
+            let second_byte = self.memory[actual_pc + 1] as u16;
+            (first_byte << 8) | second_byte
+        };
+        
+        // println!("{:04x}: {:04x}", self.pc, instruction);
+        let next_pc = self.execute_instruction(instruction);
+        self.pc = next_pc;
+    }
+    
+    pub fn update_timers(&mut self, dt: f64) {
+        self.dt.step(dt);
+        self.st.step(dt);
     }
 
     fn execute_instruction(&mut self, instruction: u16) -> u16 {

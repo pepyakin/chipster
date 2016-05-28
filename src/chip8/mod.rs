@@ -16,6 +16,7 @@ pub struct Chip8 {
     i: u16,
     dt: timer::Timer,
     st: timer::Timer,
+    video_memory: [u8; 64 * 32],
 }
 
 #[derive(Copy, Clone)]
@@ -48,7 +49,9 @@ impl Chip8 {
             i: 0, // TODO: Initial value?
             dt: timer::Timer::new(),
             st: timer::Timer::new(),
+            video_memory: [0; 64 * 32],
         };
+        
 
         for i in 0..80 {
             chip8.memory[i] = FONT_SPRITES[i];
@@ -90,7 +93,9 @@ impl Chip8 {
         let mut next_pc = self.pc + 2;
         if instruction == 0x00E0 {
             // 00E0 - CLS
-            // TODO: Implement
+            for i in self.video_memory.iter_mut() {
+                *i = 0;
+            }
         } else if instruction == 0x00EE {
             // 00EE - RET
             let retaddr = self.stack.pop();

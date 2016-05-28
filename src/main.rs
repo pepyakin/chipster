@@ -1,5 +1,8 @@
 extern crate rand;
 extern crate portaudio;
+extern crate piston_window;
+
+use piston_window::*;
 
 mod audio;
 mod chip8;
@@ -24,7 +27,17 @@ fn main() {
     let mut beeper = portaudio_holder.create_beeper();
 
     let mut chip8 = chip8::Chip8::with_bin(bin_data);
-    chip8.execute(|chip| {
+    
+    let title = "Hello Piston! (press any key to enter inner loop)";
+    let mut window: PistonWindow = WindowSettings::new(title, [640, 480])
+        .exit_on_esc(true)
+        .build()
+        .unwrap_or_else(|e| { panic!("Failed to build PistonWindow: {}", e) });
 
-    });
+    while let Some(e) = window.next() {
+        window.draw_2d(&e, |c, g| {
+            clear([0.5, 1.0, 0.5, 1.0], g);
+            rectangle([1.0, 0.0, 0.0, 1.0], [50.0, 50.0, 100.0, 100.0], c.transform, g);
+        });
+    }
 }

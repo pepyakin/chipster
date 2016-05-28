@@ -66,9 +66,7 @@ impl Chip8 {
         chip8
     }
 
-    pub fn execute<F>(&mut self, probe: F)
-        where F: Fn(&Chip8)
-    {
+    pub fn execute<F>(&mut self) {
         loop {
             let cycle_start = SystemTime::now();
 
@@ -93,8 +91,6 @@ impl Chip8 {
                 }
                 Err(_) => {}
             }
-
-            probe(self);
         }
     }
 
@@ -307,6 +303,10 @@ impl Chip8 {
         }
 
         next_pc
+    }
+    
+    pub fn is_beeping(&self) -> bool {
+        self.st.get() != 0
     }
 }
 

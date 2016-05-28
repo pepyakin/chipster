@@ -73,3 +73,12 @@ impl<'a> Beeper<'a> {
         }
     }
 }
+
+impl<'a> Drop for Beeper<'a> {
+    fn drop(&mut self) {
+        if self.started {
+            self.stream.stop();
+        }
+        self.stream.close();
+    }
+}

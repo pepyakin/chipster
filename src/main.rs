@@ -25,8 +25,8 @@ fn main() {
     let bin_file_name = env::args().nth(1).unwrap();
     let bin_data = read_bin(bin_file_name);
 
-    let mut chip8 = Chip8::new();
-    chip8.execute(bin_data);
+    let mut chip8 = Chip8::new(bin_data);
+    chip8.execute();
 }
 
 pub struct Chip8 {
@@ -60,7 +60,7 @@ impl Instruction {
 }
 
 impl Chip8 {
-    pub fn new() -> Chip8 {
+    pub fn new(bin_data: Box<[u8]>) -> Chip8 {
         let mut chip8 = Chip8 {
             memory: [0; 4096], // TODO: beware this stuff is going to be allocated on the stack
             gpr: [0; 16],
@@ -74,16 +74,21 @@ impl Chip8 {
         for i in 0..80 {
             chip8.memory[i] = FONT_SPRITES[i];
         }
+        for (i, octet) in bin_data.iter().enumerate() {
+            chip8.memory[0x200 + i] = *octet;
+        }
+        
         chip8
     }
 
-    fn execute(&mut self, bin_data: Box<[u8]>) {
+    fn execute(&mut self) {
         let mut portaudio_holder = audio::PortAudioHolder::new();
         let mut beeper = portaudio_holder.create_beeper();
         beeper.start();
-
+ 
         loop {
-            let actual_pc = (self.pc - 0x200) as usize;
+            
+            let actual_pc = self.pc as usize;
 
             let first_byte = (*bin_data)[actual_pc] as u16;
             let second_byte = (*bin_data)[actual_pc + 1] as u16;

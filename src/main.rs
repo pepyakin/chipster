@@ -3,6 +3,7 @@ extern crate portaudio;
 
 mod stack;
 mod audio;
+mod timer;
 
 use stack::Stack;
 
@@ -11,6 +12,8 @@ use std::io::Read;
 use std::fs::File;
 use std::env;
 use std::fmt;
+use std::time::{Duration, SystemTime};
+use std::thread::sleep;
 
 use rand::Rng;
 
@@ -25,7 +28,7 @@ fn main() {
     let bin_file_name = env::args().nth(1).unwrap();
     let bin_data = read_bin(bin_file_name);
 
-    let mut chip8 = Chip8::new(bin_data);
+    let mut chip8 = Chip8::with_bin(bin_data);
     chip8.execute();
 }
 
@@ -35,8 +38,8 @@ pub struct Chip8 {
     stack: Stack,
     pc: u16,
     i: u16,
-    dt: u8,
-    st: u8,
+    dt: timer::Timer,
+    st: timer::Timer,
 }
 
 #[derive(Copy, Clone)]
@@ -60,20 +63,26 @@ impl Instruction {
 }
 
 impl Chip8 {
-    pub fn new(bin_data: Box<[u8]>) -> Chip8 {
+    pub fn new() -> Chip8 {
         let mut chip8 = Chip8 {
             memory: [0; 4096], // TODO: beware this stuff is going to be allocated on the stack
             gpr: [0; 16],
             stack: Stack::new(),
             pc: 0x200,
             i: 0, // TODO: Initial value?
-            dt: 0,
-            st: 0,
+            dt: timer::Timer::new(),
+            st: timer::Timer::new(),
         };
 
         for i in 0..80 {
             chip8.memory[i] = FONT_SPRITES[i];
         }
+        chip8
+    }
+    
+    pub fn with_bin(bin_data: Box<[u8]>) -> Chip8 {
+        let mut chip8 = Chip8::new();
+        
         for (i, octet) in bin_data.iter().enumerate() {
             chip8.memory[0x200 + i] = *octet;
         }
@@ -87,26 +96,18 @@ impl Chip8 {
         beeper.start();
  
         loop {
-            
-            let actual_pc = self.pc as usize;
+            let cycle_start = SystemTime::now();
 
-            let first_byte = (*bin_data)[actual_pc] as u16;
-            let second_byte = (*bin_data)[actual_pc + 1] as u16;
-            let instruction = (first_byte << 8) | second_byte;
+            let instruction = {
+                let actual_pc = self.pc as usize;
+                let first_byte = self.memory[actual_pc] as u16;
+                let second_byte = self.memory[actual_pc + 1] as u16;
+                (first_byte << 8) | second_byte
+            };
 
             println!("{:04x}: {:04x}", self.pc, instruction);
             let next_pc = self.execute_instruction(instruction);
             self.pc = next_pc;
-
-            // TODO: This is terribly inaccurate approximation.
-            if self.dt > 0 {
-                self.dt -= 1;
-            }
-            if self.st > 0 {
-                self.st -= 1;
-            }
-
-            // println!("after: {:#?}", self);
         }
     }
 
@@ -267,7 +268,7 @@ impl Chip8 {
         } else if (instruction & 0xF0FF) == 0xF007 {
             // Fx07 - LD Vx, DT
             let vx = parsed.x_reg();
-            self.gpr[vx] = self.dt;
+            self.gpr[vx] = self.dt.get();
         } else if (instruction & 0xF0FF) == 0xF00A {
             // Fx0A - LD Vx, K
             let vx = parsed.x_reg();
@@ -275,11 +276,11 @@ impl Chip8 {
         } else if (instruction & 0xF0FF) == 0xF015 {
             // Fx15 - LD DT, Vx
             let vx = parsed.x_reg();
-            self.dt = self.gpr[vx];
+            self.dt.set(self.gpr[vx]);
         } else if (instruction & 0xF0FF) == 0xF018 {
             // Fx18 - LD ST, Vx
             let vx = parsed.x_reg();
-            self.st = self.gpr[vx];
+            self.st.set(self.gpr[vx]);
         } else if (instruction & 0xF0FF) == 0xF01E {
             // Fx1E - ADD I, Vx
             let vx = parsed.x_reg();
@@ -331,7 +332,7 @@ impl fmt::Debug for Chip8 {
         try!(writeln!(f, "  PC: {:04x}", self.pc));
         try!(writeln!(f, "  I : {:04x}", self.i));
         try!(writeln!(f, "  stack: {:#?}", self.stack));
-        try!(writeln!(f, "  DT: {:02x}", self.dt));
+        try!(writeln!(f, "  DT: {:02x}", self.dt.get()));
         try!(writeln!(f, "}}"));
 
         Ok(())

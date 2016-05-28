@@ -79,22 +79,21 @@ impl Chip8 {
         }
         chip8
     }
-    
+
     pub fn with_bin(bin_data: Box<[u8]>) -> Chip8 {
         let mut chip8 = Chip8::new();
-        
+
         for (i, octet) in bin_data.iter().enumerate() {
             chip8.memory[0x200 + i] = *octet;
         }
-        
+
         chip8
     }
 
     fn execute(&mut self) {
         let mut portaudio_holder = audio::PortAudioHolder::new();
         let mut beeper = portaudio_holder.create_beeper();
-        beeper.start();
- 
+
         loop {
             let cycle_start = SystemTime::now();
 
@@ -108,6 +107,19 @@ impl Chip8 {
             println!("{:04x}: {:04x}", self.pc, instruction);
             let next_pc = self.execute_instruction(instruction);
             self.pc = next_pc;
+
+            match cycle_start.elapsed() {
+                Ok(elapsed) => {
+                    let dt: f64 = {
+                        (elapsed.subsec_nanos() as f64 / 1e9) + elapsed.as_secs() as f64
+                    };
+                    self.dt.step(dt);
+                    self.st.step(dt);
+                }
+                Err(_) => {}
+            }
+
+            beeper.set_started(self.st.get() != 0);
         }
     }
 

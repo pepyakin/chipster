@@ -23,6 +23,7 @@ impl PortAudioHolder {
 
 pub struct Beeper<'a> {
     stream: stream::Stream<'a, stream::NonBlocking, stream::Output<f32>>,
+    started: bool,
 }
 
 impl<'a> Beeper<'a> {
@@ -53,16 +54,22 @@ impl<'a> Beeper<'a> {
         };
 
         let mut stream = p.open_non_blocking_stream(settings, callback).unwrap();
-        Beeper { stream: stream }
+        Beeper {
+            stream: stream,
+            started: false,
+        }
     }
 
-    pub fn start(&mut self) {
-        println!("starting stream");
-        self.stream.start();
-    }
-
-    pub fn stop(&mut self) {
-        println!("stoping stream");
-        self.stream.stop();
+    pub fn set_started(&mut self, started: bool) {
+        if self.started != started {
+            self.started = started;
+            if started {
+                println!("starting stream");
+                self.stream.start();
+            } else {
+                println!("stoping stream");
+                self.stream.stop();
+            }
+        }
     }
 }

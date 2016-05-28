@@ -24,15 +24,9 @@ fn read_bin<P: AsRef<Path>>(path: P) -> Box<[u8]> {
 fn main() {
     let bin_file_name = env::args().nth(1).unwrap();
     let bin_data = read_bin(bin_file_name);
-    
-    let mut portaudio_holder = audio::PortAudioHolder::new();
-    let mut beeper = portaudio_holder.create_beeper();
-    beeper.start();
        
     let mut chip8 = Chip8::new();
-    chip8.execute(bin_data);
-    
-    beeper.stop();
+    chip8.execute(bin_data); 
 }
 
 pub struct Chip8 {
@@ -84,6 +78,10 @@ impl Chip8 {
     }
     
     fn execute(&mut self, bin_data: Box<[u8]>) { 
+        let mut portaudio_holder = audio::PortAudioHolder::new();
+        let mut beeper = portaudio_holder.create_beeper();
+        beeper.start();
+        
         loop {
             let actual_pc = (self.pc - 0x200) as usize;
             

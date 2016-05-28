@@ -65,7 +65,7 @@ impl Chip8 {
 
         chip8
     }
-    
+
     pub fn cycle(&mut self) {
         let instruction = {
             let actual_pc = self.pc as usize;
@@ -73,12 +73,12 @@ impl Chip8 {
             let second_byte = self.memory[actual_pc + 1] as u16;
             (first_byte << 8) | second_byte
         };
-        
+
         // println!("{:04x}: {:04x}", self.pc, instruction);
         let next_pc = self.execute_instruction(instruction);
         self.pc = next_pc;
     }
-    
+
     pub fn update_timers(&mut self, dt: f64) {
         self.dt.step(dt);
         self.st.step(dt);
@@ -294,7 +294,7 @@ impl Chip8 {
 
         next_pc
     }
-    
+
     pub fn is_beeping(&self) -> bool {
         self.st.get() != 0
     }

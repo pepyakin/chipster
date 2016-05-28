@@ -62,9 +62,21 @@ fn main() {
 
         if let Some(args) = e.render_args() {
             window.draw_2d(&e, |c, g| {
-                clear([0.5, 1.0, 0.5, 1.0], g);
-
-
+                clear([0.0, 0.0, 0.0, 1.0], g);
+                
+                let w = args.width as f64 / 64.0;
+                let h = args.height as f64 / 32.0;
+                
+                for y in 0..32 {
+                    for x in 0..64 {
+                        let dx = x as f64 * w;
+                        let dy = y as f64 * h;
+                        
+                        if chip8.display.get(x, y) != 0 {
+                            rectangle([1.0, 1.0, 1.0, 1.0], [dx, dy, w, h], c.transform, g);
+                        }
+                    }
+                }
             });
         }
     }

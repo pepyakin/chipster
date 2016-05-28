@@ -1,5 +1,6 @@
 mod stack;
 mod timer;
+mod display;
 
 use std::fmt;
 use std::time::{Duration, SystemTime};
@@ -16,7 +17,7 @@ pub struct Chip8 {
     i: u16,
     dt: timer::Timer,
     st: timer::Timer,
-    video_memory: [u8; 64 * 32],
+    pub display: display::Display,
 }
 
 #[derive(Copy, Clone)]
@@ -26,8 +27,13 @@ impl Instruction {
     fn nnn(self) -> u16 {
         self.0 & 0x0FFF
     }
+    
     fn kk(self) -> u8 {
         (self.0 & 0xFF) as u8
+    }
+    
+    fn n(self) -> u8 {
+        (self.0 & 0xF) as u8
     }
 
     fn x_reg(self) -> usize {
@@ -49,7 +55,7 @@ impl Chip8 {
             i: 0, // TODO: Initial value?
             dt: timer::Timer::new(),
             st: timer::Timer::new(),
-            video_memory: [0; 64 * 32],
+            display: display::Display::new(),
         };
         
 
@@ -93,9 +99,7 @@ impl Chip8 {
         let mut next_pc = self.pc + 2;
         if instruction == 0x00E0 {
             // 00E0 - CLS
-            for i in self.video_memory.iter_mut() {
-                *i = 0;
-            }
+            self.display.clear();
         } else if instruction == 0x00EE {
             // 00EE - RET
             let retaddr = self.stack.pop();
@@ -236,7 +240,16 @@ impl Chip8 {
             self.gpr[vx] = random_byte & imm;
         } else if (instruction & 0xF000) == 0xD000 {
             // Dxyn - DRW Vx, Vy, nibble
-            // TODO: Implement
+            let x = self.gpr[parsed.x_reg()] as usize;
+            let y = self.gpr[parsed.y_reg()] as usize;
+            let from = self.i as usize;
+            let to = from + (parsed.n() as usize);
+            
+            self.gpr[VF] = if self.display.draw(x, y, &self.memory[from..to]) {
+                1
+            } else {
+                0
+            };
         } else if (instruction & 0xF0FF) == 0xE09E {
             // Ex9E - SKP Vx
             // TODO: Implement

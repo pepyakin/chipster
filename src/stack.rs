@@ -2,17 +2,17 @@ use std::fmt;
 
 pub struct Stack {
     sp: usize,
-    frames: [u16; 16]
+    frames: [u16; 16],
 }
 
 impl Stack {
     pub fn new() -> Stack {
         Stack {
             sp: 0,
-            frames: [0; 16]
+            frames: [0; 16],
         }
     }
-    
+
     pub fn pop(&mut self) -> u16 {
         let value = self.frames[self.sp];
         self.sp -= 1;
@@ -24,7 +24,7 @@ impl Stack {
         if new_sp > 15 {
             panic!("stackoverflow! stack: {:?}", self.frames);
         }
-        
+
         self.sp = new_sp;
         self.frames[new_sp] = value;
     }
@@ -40,7 +40,7 @@ impl fmt::Debug for Stack {
         try!(writeln!(f, "]"));
         try!(writeln!(f, "  SP: {:04x} ({})", self.sp, self.sp));
         try!(writeln!(f, "}}"));
-        
+
         Ok(())
     }
 }

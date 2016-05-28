@@ -24,9 +24,9 @@ fn read_bin<P: AsRef<Path>>(path: P) -> Box<[u8]> {
 fn main() {
     let bin_file_name = env::args().nth(1).unwrap();
     let bin_data = read_bin(bin_file_name);
-       
+
     let mut chip8 = Chip8::new();
-    chip8.execute(bin_data); 
+    chip8.execute(bin_data);
 }
 
 pub struct Chip8 {
@@ -36,7 +36,7 @@ pub struct Chip8 {
     pc: u16,
     i: u16,
     dt: u8,
-    st: u8
+    st: u8,
 }
 
 #[derive(Copy, Clone)]
@@ -49,11 +49,11 @@ impl Instruction {
     fn kk(self) -> u8 {
         (self.0 & 0xFF) as u8
     }
-    
+
     fn x_reg(self) -> usize {
         ((self.0 & 0x0F00) >> 8) as usize
     }
-    
+
     fn y_reg(self) -> usize {
         ((self.0 & 0x00F0) >> 4) as usize
     }
@@ -68,31 +68,31 @@ impl Chip8 {
             pc: 0x200,
             i: 0, // TODO: Initial value?
             dt: 0,
-            st: 0
+            st: 0,
         };
-        
+
         for i in 0..80 {
-            chip8.memory[i] = FONT_SPRITES[i]; 
+            chip8.memory[i] = FONT_SPRITES[i];
         }
         chip8
     }
-    
-    fn execute(&mut self, bin_data: Box<[u8]>) { 
+
+    fn execute(&mut self, bin_data: Box<[u8]>) {
         let mut portaudio_holder = audio::PortAudioHolder::new();
         let mut beeper = portaudio_holder.create_beeper();
         beeper.start();
-        
+
         loop {
             let actual_pc = (self.pc - 0x200) as usize;
-            
+
             let first_byte = (*bin_data)[actual_pc] as u16;
             let second_byte = (*bin_data)[actual_pc + 1] as u16;
             let instruction = (first_byte << 8) | second_byte;
-            
+
             println!("{:04x}: {:04x}", self.pc, instruction);
             let next_pc = self.execute_instruction(instruction);
             self.pc = next_pc;
-            
+
             // TODO: This is terribly inaccurate approximation.
             if self.dt > 0 {
                 self.dt -= 1;
@@ -100,23 +100,23 @@ impl Chip8 {
             if self.st > 0 {
                 self.st -= 1;
             }
-            
+
             // println!("after: {:#?}", self);
         }
     }
-    
+
     fn execute_instruction(&mut self, instruction: u16) -> u16 {
         let parsed = Instruction(instruction);
-        
-        let mut next_pc = self.pc + 2;       
-        if instruction  == 0x00E0 {
+
+        let mut next_pc = self.pc + 2;
+        if instruction == 0x00E0 {
             // 00E0 - CLS
             // TODO: Implement
         } else if instruction == 0x00EE {
             // 00EE - RET
             let retaddr = self.stack.pop();
             next_pc = retaddr;
-            
+
             println!("RET to {:0x}@ PC:{:0x}", retaddr, self.pc);
         } else if (instruction & 0xF000) == 0x1000 {
             // 1nnn - JP addr
@@ -128,8 +128,11 @@ impl Chip8 {
             let pc = self.pc;
             self.stack.push(next_pc);
             next_pc = addr;
-            
-            println!("CALL {:0x} @ PC:{:0x}, stack: {:#?}", addr, self.pc, self.stack);
+
+            println!("CALL {:0x} @ PC:{:0x}, stack: {:#?}",
+                     addr,
+                     self.pc,
+                     self.stack);
         } else if (instruction & 0xF000) == 0x3000 {
             // 3xkk - SE Vx, byte
             let vx = parsed.x_reg();
@@ -180,42 +183,54 @@ impl Chip8 {
             let vy = parsed.y_reg();
             let (v, overflow) = self.gpr[vx].overflowing_add(self.gpr[vy]);
             self.gpr[vx] = v;
-            self.gpr[VF] = if overflow { 1 } else { 0 }; 
+            self.gpr[VF] = if overflow {
+                1
+            } else {
+                0
+            };
         } else if (instruction & 0xF00F) == 0x8005 {
             // 8xy5 - SUB Vx, Vy
             let vx = parsed.x_reg();
             let vy = parsed.y_reg();
-            
+
             let minuend = self.gpr[vx];
             let subtrahend = self.gpr[vy];
             let (v, borrow) = minuend.overflowing_sub(subtrahend);
-        
-            self.gpr[vx] = v;            
-            self.gpr[VF] = if borrow { 0 } else { 1 } 
+
+            self.gpr[vx] = v;
+            self.gpr[VF] = if borrow {
+                0
+            } else {
+                1
+            }
         } else if (instruction & 0xF00F) == 0x8006 {
             // 8xy6 - SHR Vx {, Vy}
             let vx = parsed.x_reg();
             let vy = parsed.y_reg();
-            
+
             self.gpr[VF] = self.gpr[vy] & 0x01;
             self.gpr[vx] = self.gpr[vy] >> 1;
         } else if (instruction & 0xF00F) == 0x8007 {
             // 8xy7 - SUBN Vx, Vy
             let vx = parsed.x_reg();
             let vy = parsed.y_reg();
-            
+
             let minuend = self.gpr[vx as usize];
             let subtrahend = self.gpr[vy as usize];
-            
+
             let (v, borrow) = subtrahend.overflowing_sub(minuend);
-            
+
             self.gpr[vx] = v;
-            self.gpr[VF] = if borrow { 0 } else { 1 };
+            self.gpr[VF] = if borrow {
+                0
+            } else {
+                1
+            };
         } else if (instruction & 0xF00F) == 0x800E {
             // 8xyE - SHL Vx {, Vy}
             let vx = parsed.x_reg();
             let vy = parsed.y_reg();
-            
+
             self.gpr[VF] = self.gpr[vy] >> 7;
             self.gpr[vx] = self.gpr[vy] << 1;
         } else if (instruction & 0xF000) == 0x9000 {
@@ -274,31 +289,30 @@ impl Chip8 {
             let vx = parsed.x_reg();
             let v = self.gpr[vx];
             let i = self.i as usize;
-            
+
             self.memory[i] = v / 100;
             self.memory[i + 1] = (v / 10) % 10;
-            self.memory[i + 2] = (v % 100) % 10; 
+            self.memory[i + 2] = (v % 100) % 10;
         } else if (instruction & 0xF0FF) == 0xF055 {
             // Fx55 - LD [I], Vx
             let vx = parsed.x_reg();
             let i = self.i as usize;
-            for offset in 0..(vx+1) {
-                self.memory[i + offset] = self.gpr[offset]; 
+            for offset in 0..(vx + 1) {
+                self.memory[i + offset] = self.gpr[offset];
             }
             self.i += vx as u16 + 1;
         } else if (instruction & 0xF0FF) == 0xF065 {
             // Fx65 - LD Vx, [I]
             let vx = parsed.x_reg();
             let i = self.i as usize;
-            for offset in 0..(vx+1) {
-                self.gpr[offset] = self.memory[i + offset]; 
+            for offset in 0..(vx + 1) {
+                self.gpr[offset] = self.memory[i + offset];
             }
             self.i += vx as u16 + 1;
-        }
-        else {
+        } else {
             panic!("unrecognized instruction: 0x{:04x}", instruction);
         }
-        
+
         next_pc
     }
 }
@@ -314,12 +328,14 @@ impl fmt::Debug for Chip8 {
         try!(writeln!(f, "  stack: {:#?}", self.stack));
         try!(writeln!(f, "  DT: {:02x}", self.dt));
         try!(writeln!(f, "}}"));
-        
+
         Ok(())
     }
 }
 
 const FONT_MEMORY_OFFSET: u16 = 0;
+
+#[cfg_attr(rustfmt, rustfmt_skip)]
 const FONT_SPRITES: [u8; 80] = [
 	0xF0, 0x90, 0x90, 0x90, 0xF0, // 0
 	0x20, 0x60, 0x20, 0x20, 0x70, // 1
@@ -344,150 +360,150 @@ pub const VF: usize = 0x0F;
 #[cfg(test)]
 mod test {
     use super::*;
-    
+
     impl Chip8 {
         fn is_borrow_bit_set(&self) -> bool {
             self.gpr[VF] == 0x00
         }
     }
-    
+
     #[test]
     fn op_sub_eq() {
         let mut chip8 = Chip8::new();
-        
+
         chip8.execute_instruction(0x6105); // LD  V1,  5
         chip8.execute_instruction(0x6205); // LD  V2,  5
         chip8.execute_instruction(0x8125); // SUB V1, V2
-        
+
         let result = chip8.gpr[0x01];
-        let borrowed = chip8.is_borrow_bit_set();  
-        
+        let borrowed = chip8.is_borrow_bit_set();
+
         assert_eq!(result, 0);
-        assert_eq!(borrowed, false); 
+        assert_eq!(borrowed, false);
     }
-    
+
     #[test]
     fn op_sub_normal() {
         let mut chip8 = Chip8::new();
-        
+
         chip8.execute_instruction(0x610A); // LD  V1, 10
         chip8.execute_instruction(0x6205); // LD  V2,  5
         chip8.execute_instruction(0x8125); // SUB V1, V2
-        
-        let result = chip8.gpr[0x01];  
-        
+
+        let result = chip8.gpr[0x01];
+
         assert_eq!(result, 5);
         assert_eq!(chip8.is_borrow_bit_set(), false);
     }
-    
+
     #[test]
     fn op_sub_borrow() {
         let mut chip8 = Chip8::new();
-        
+
         chip8.execute_instruction(0x6105); // LD  V1,  5
         chip8.execute_instruction(0x620A); // LD  V2, 10
         chip8.execute_instruction(0x8125); // SUB V1, V2
-        
-        let result = chip8.gpr[0x01];  
-        
+
+        let result = chip8.gpr[0x01];
+
         assert_eq!(result, -5i8 as u8);
         assert_eq!(chip8.is_borrow_bit_set(), true);
     }
-    
+
     #[test]
     fn op_shr_shifted_1() {
         let mut chip8 = Chip8::new();
-        
+
         chip8.execute_instruction(0x6103); // LD   V1, 0b0000_0011
         chip8.execute_instruction(0x8216); // SHR  V2, V1
-        
+
         let result = chip8.gpr[0x02];
         let shifted_bit = chip8.gpr[VF];
-        
+
         assert_eq!(result, 1);
         assert_eq!(shifted_bit, 1);
     }
-    
+
     #[test]
     fn op_shr_shifted_0() {
         let mut chip8 = Chip8::new();
-        
+
         chip8.execute_instruction(0x6106); // LD   V1, 0b0000_0110
         chip8.execute_instruction(0x8216); // SHR  V2, V1
-        
+
         let result = chip8.gpr[0x02];
         let shifted_bit = chip8.gpr[VF];
-        
+
         assert_eq!(result, 3);
         assert_eq!(shifted_bit, 0);
     }
-    
+
     #[test]
     fn op_subn_eq() {
         let mut chip8 = Chip8::new();
-        
+
         chip8.execute_instruction(0x6105); // LD   V1,  5
         chip8.execute_instruction(0x6205); // LD   V2,  5
         chip8.execute_instruction(0x8127); // SUBN V1, V2
-        
+
         let result = chip8.gpr[0x01];
-        
+
         assert_eq!(result, 0);
-        assert_eq!(chip8.is_borrow_bit_set(), false);   
+        assert_eq!(chip8.is_borrow_bit_set(), false);
     }
-    
+
     #[test]
     fn op_subn_normal() {
         let mut chip8 = Chip8::new();
-        
+
         chip8.execute_instruction(0x6105); // LD   V1,  5
         chip8.execute_instruction(0x620A); // LD   V2, 10
         chip8.execute_instruction(0x8127); // SUBN V1, V2
-        
+
         let result = chip8.gpr[0x01];
-        
+
         assert_eq!(result, 5);
         assert_eq!(chip8.is_borrow_bit_set(), false);
     }
-    
+
     #[test]
     fn op_subn_borrow() {
         let mut chip8 = Chip8::new();
-            
+
         chip8.execute_instruction(0x610A); // LD   V1, 10
         chip8.execute_instruction(0x6205); // LD   V2,  5
         chip8.execute_instruction(0x8127); // SUBN V1, V2
-        
+
         let result = chip8.gpr[0x01];
-        
+
         assert_eq!(result, -5i8 as u8);
         assert_eq!(chip8.is_borrow_bit_set(), true);
     }
-    
+
     #[test]
     fn op_shl_shifted_1() {
         let mut chip8 = Chip8::new();
-        
+
         chip8.execute_instruction(0x61C0); // LD   V1, 0b1100_0000
         chip8.execute_instruction(0x821E); // SHL  V2, V1
-        
+
         let result = chip8.gpr[0x02];
         let shifted_bit = chip8.gpr[VF];
-        
+
         assert_eq!(result, 0x80);
         assert_eq!(shifted_bit, 1);
     }
-    
+
     #[test]
     fn op_shl_shifted_0() {
         let mut chip8 = Chip8::new();
-        
+
         chip8.execute_instruction(0x6160); // LD   V1, 0b0110_0000
         chip8.execute_instruction(0x821E); // SHL  V2, V1
-        
+
         let result = chip8.gpr[0x02];
         let shifted_bit = chip8.gpr[VF];
-        
+
         assert_eq!(result, 0xC0);
         assert_eq!(shifted_bit, 0);
     }

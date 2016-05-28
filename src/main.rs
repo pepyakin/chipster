@@ -1,6 +1,8 @@
 extern crate rand;
+extern crate portaudio;
 
 mod stack;
+mod audio;
 
 use stack::Stack;
 
@@ -21,10 +23,16 @@ fn read_bin<P: AsRef<Path>>(path: P) -> Box<[u8]> {
 
 fn main() {
     let bin_file_name = env::args().nth(1).unwrap();
-    let bin_data = read_bin(bin_file_name); 
+    let bin_data = read_bin(bin_file_name);
+    
+    let mut portaudio_holder = audio::PortAudioHolder::new();
+    let mut beeper = portaudio_holder.create_beeper();
+    beeper.start();
        
     let mut chip8 = Chip8::new();
     chip8.execute(bin_data);
+    
+    beeper.stop();
 }
 
 pub struct Chip8 {

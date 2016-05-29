@@ -135,6 +135,13 @@ impl Chip8 {
             if self.gpr[vx] != imm {
                 next_pc += 2;
             }
+        } else if (instruction & 0xF000) == 0x5000 {
+            // 5xy0 - SE Vx, Vy
+            let vx = parsed.x_reg();
+            let vy = parsed.y_reg();
+            if self.gpr[vx] == self.gpr[vy] {
+                next_pc += 2;
+            }
         } else if (instruction & 0xF000) == 0x6000 {
             // 6xkk - LD Vx, byte
             let vx = parsed.x_reg();

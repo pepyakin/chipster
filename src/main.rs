@@ -30,7 +30,7 @@ fn map_keycode(k: Button) -> Option<usize> {
     // +---+---+---+---+
     // | A | 0 | B | F |
     // +---+---+---+---+
-    
+
     if let Button::Keyboard(k) = k {
         return match k {
             Key::D1 => Some(0x1),
@@ -73,6 +73,8 @@ fn main() {
         .build()
         .unwrap_or_else(|e| panic!("Failed to build PistonWindow: {}", e));
 
+
+    let mut paused = false;
     let mut left_from_last_update: f64 = 0.0;
     while let Some(e) = window.next() {
         if let Some(button) = e.press_args() {
@@ -84,11 +86,19 @@ fn main() {
             }
         }
         if let Some(button) = e.release_args() {
+            if button == Button::Keyboard(Key::Space) {
+                paused = !paused;
+            }
+            
             if let Some(released_key) = map_keycode(button) {
                 chip8.keyboard[released_key] = 0;
                 println!("key released {:?}", released_key);
                 // println!("{:?}", chip8.keyboard);
             }
+        }
+        
+        if paused {
+            continue;
         }
         
         if let Some(args) = e.update_args() {
@@ -131,7 +141,7 @@ fn main() {
 
                         if chip8.display.get(x, y) != 0 {
                             let rect = [dx + w * 0.1, dy + h * 0.1, w * 0.9, h * 0.9];
-                            
+
                             rectangle([1.0, 1.0, 1.0, 1.0], rect, c.transform, g);
                         }
                     }

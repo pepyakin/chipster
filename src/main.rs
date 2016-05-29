@@ -68,7 +68,7 @@ fn main() {
     let mut chip8 = chip8::Chip8::with_bin(bin_data);
 
     let title = "Chip8";
-    let mut window: PistonWindow = WindowSettings::new(title, [640, 480])
+    let mut window: PistonWindow = WindowSettings::new(title, [640, 320])
         .exit_on_esc(true)
         .build()
         .unwrap_or_else(|e| panic!("Failed to build PistonWindow: {}", e));
@@ -130,7 +130,9 @@ fn main() {
                         let dy = y as f64 * h;
 
                         if chip8.display.get(x, y) != 0 {
-                            rectangle([1.0, 1.0, 1.0, 1.0], [dx, dy, w, h], c.transform, g);
+                            let rect = [dx + w * 0.1, dy + h * 0.1, w * 0.9, h * 0.9];
+                            
+                            rectangle([1.0, 1.0, 1.0, 1.0], rect, c.transform, g);
                         }
                     }
                 }

@@ -18,6 +18,7 @@ pub struct Chip8 {
     dt: timer::Timer,
     st: timer::Timer,
     pub display: display::Display,
+    pub keyboard: [u8; 16],
 }
 
 #[derive(Copy, Clone)]
@@ -27,11 +28,11 @@ impl Instruction {
     fn nnn(self) -> u16 {
         self.0 & 0x0FFF
     }
-    
+
     fn kk(self) -> u8 {
         (self.0 & 0xFF) as u8
     }
-    
+
     fn n(self) -> u8 {
         (self.0 & 0xF) as u8
     }
@@ -56,8 +57,9 @@ impl Chip8 {
             dt: timer::Timer::new(),
             st: timer::Timer::new(),
             display: display::Display::new(),
+            keyboard: [0; 16],
         };
-        
+
 
         for i in 0..80 {
             chip8.memory[i] = FONT_SPRITES[i];
@@ -104,8 +106,6 @@ impl Chip8 {
             // 00EE - RET
             let retaddr = self.stack.pop();
             next_pc = retaddr;
-
-            println!("RET to {:0x}@ PC:{:0x}", retaddr, self.pc);
         } else if (instruction & 0xF000) == 0x1000 {
             // 1nnn - JP addr
             let addr = parsed.nnn();
@@ -116,11 +116,6 @@ impl Chip8 {
             let pc = self.pc;
             self.stack.push(next_pc);
             next_pc = addr;
-
-            println!("CALL {:0x} @ PC:{:0x}, stack: {:#?}",
-                     addr,
-                     self.pc,
-                     self.stack);
         } else if (instruction & 0xF000) == 0x3000 {
             // 3xkk - SE Vx, byte
             let vx = parsed.x_reg();
@@ -239,6 +234,8 @@ impl Chip8 {
             // Annn - LD I, addr
             let addr = parsed.nnn();
             self.i = addr;
+        } else if (instruction & 0xF000) == 0xB000 {
+            panic!("instruction not implemented 0xBxxx");
         } else if (instruction & 0xF000) == 0xC000 {
             // Cxkk - RND Vx, byte
             let vx = parsed.x_reg();
@@ -251,7 +248,7 @@ impl Chip8 {
             let y = self.gpr[parsed.y_reg()] as usize;
             let from = self.i as usize;
             let to = from + (parsed.n() as usize);
-            
+
             self.gpr[VF] = if self.display.draw(x, y, &self.memory[from..to]) {
                 1
             } else {
@@ -259,18 +256,25 @@ impl Chip8 {
             };
         } else if (instruction & 0xF0FF) == 0xE09E {
             // Ex9E - SKP Vx
-            // TODO: Implement
+            let x = self.gpr[parsed.x_reg()] as usize;
+            if self.keyboard[x] == 1 {
+                next_pc += 2;
+            }
         } else if (instruction & 0xF0FF) == 0xE0A1 {
             // ExA1 - SKNP Vx
-            // TODO: Implement
+            let x = self.gpr[parsed.x_reg()] as usize;
+            if self.keyboard[x] != 1 {
+                next_pc += 2;
+            }
         } else if (instruction & 0xF0FF) == 0xF007 {
             // Fx07 - LD Vx, DT
             let vx = parsed.x_reg();
             self.gpr[vx] = self.dt.get();
         } else if (instruction & 0xF0FF) == 0xF00A {
             // Fx0A - LD Vx, K
-            let vx = parsed.x_reg();
-            self.gpr[vx] = 0; // TODO: Wait for actual keyboard input.
+            // let vx = parsed.x_reg();
+            // self.gpr[vx] = 0; // TODO: Wait for actual keyboard input.
+            panic!("instruction not implemented 0xFxxA");
         } else if (instruction & 0xF0FF) == 0xF015 {
             // Fx15 - LD DT, Vx
             let vx = parsed.x_reg();

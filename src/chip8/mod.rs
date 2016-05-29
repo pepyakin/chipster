@@ -233,7 +233,7 @@ impl Chip8 {
             let vx = parsed.x_reg();
             let vy = parsed.y_reg();
             if self.gpr[vx] != self.gpr[vy] {
-                next_pc += 1;
+                next_pc += 2;
             }
         } else if (instruction & 0xF000) == 0xA000 {
             // Annn - LD I, addr

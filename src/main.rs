@@ -1,6 +1,7 @@
 extern crate rand;
 extern crate portaudio;
 extern crate piston_window;
+extern crate clap;
 
 use piston_window::*;
 
@@ -58,8 +59,47 @@ fn map_keycode(k: Button) -> Option<usize> {
     return None;
 }
 
+struct CommandArgs {
+    bin_file_name: String,
+    cycles_per_second: u32, // default: 500
+}
+
+impl CommandArgs {
+    fn parse() -> CommandArgs {
+        use clap::{Arg, App};
+
+        let matches = App::new("chip8 emulator")
+            .arg(Arg::with_name("INPUT")
+                .help("Sets the input file to use")
+                .required(true))
+            .arg(Arg::with_name("cycles per second")
+                .short("c")
+                .long("cycles-per-sec")
+                .value_name("cycles_per_second")
+                .help("Something between 500-1000")
+                .takes_value(true))
+            .get_matches();
+            
+            
+        println!("{:#?}", matches);
+        let cps = matches.value_of("cycles per second")
+                .and_then(|s| s.parse::<u32>().ok())
+                .unwrap();
+
+        CommandArgs {
+            bin_file_name: matches.value_of("INPUT").unwrap().to_string(),
+            cycles_per_second: cps,
+        }
+    }
+}
+
 fn main() {
-    let bin_file_name = env::args().nth(1).unwrap();
+    let args = CommandArgs::parse();
+    run(args);
+}
+
+fn run(command_args: CommandArgs) {
+    let bin_file_name = command_args.bin_file_name;
     let bin_data = read_bin(bin_file_name);
 
     let mut portaudio_holder = audio::PortAudioHolder::new();
@@ -80,7 +120,7 @@ fn main() {
         if let Some(button) = e.press_args() {
             if let Some(pressed_key) = map_keycode(button) {
                 chip8.keyboard[pressed_key] = 1;
-                
+
                 println!("key pressed {:?}", pressed_key);
                 // println!("{:?}", chip8.keyboard);
             }
@@ -89,33 +129,31 @@ fn main() {
             if button == Button::Keyboard(Key::Space) {
                 paused = !paused;
             }
-            
+
             if let Some(released_key) = map_keycode(button) {
                 chip8.keyboard[released_key] = 0;
                 println!("key released {:?}", released_key);
                 // println!("{:?}", chip8.keyboard);
             }
         }
-        
+
         if paused {
             continue;
         }
-        
+
         if let Some(args) = e.update_args() {
             // See "Secrets of emulation" chapter
             // in https://github.com/AfBu/haxe-chip-8-emulator/wiki/(Super)CHIP-8-Secrets
 
+            // TODO: Test for low values.
             let dt = args.dt + left_from_last_update;
-            let cycles_per_second = 500u32;
-            let cycles_to_perform = (dt * cycles_per_second as f64).floor() as usize;
+            let cycles_to_perform = (dt * command_args.cycles_per_second as f64).floor() as usize;
             let dt_per_cycle = dt / cycles_to_perform as f64;
-            /*
             println!("left_from_last_update={}, dt={}, dt_per_cycle={}, cycles_to_perform={}",
                      left_from_last_update,
                      dt,
                      dt_per_cycle,
                      cycles_to_perform);
-             */
 
             for cycle_number in 0..cycles_to_perform {
                 // println!("{}/{}", cycle_number, cycles_to_perform);

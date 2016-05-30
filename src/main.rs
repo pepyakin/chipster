@@ -113,7 +113,9 @@ fn run(command_args: CommandArgs) {
         .build()
         .unwrap_or_else(|e| panic!("Failed to build PistonWindow: {}", e));
 
-
+    window.set_swap_buffers(false);
+    window.set_max_fps(60);
+    
     let mut paused = false;
     let mut left_from_last_update: f64 = 0.0;
     while let Some(e) = window.next() {
@@ -185,6 +187,7 @@ fn run(command_args: CommandArgs) {
                     }
                 }
             });
+            Window::swap_buffers(&mut window);
         }
     }
 }

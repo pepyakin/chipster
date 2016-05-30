@@ -169,7 +169,10 @@ fn run(command_args: CommandArgs) {
 
         if let Some(args) = e.render_args() {
             window.draw_2d(&e, |c, g| {
-                clear([0.0, 0.0, 0.0, 1.0], g);
+                let clear_color = [0.98, 0.95, 0.86, 1.0];
+                let solid_color = [0.02, 0.12, 0.15, 1.0];
+               
+                clear(clear_color, g);
 
                 let w = args.width as f64 / 64.0;
                 let h = args.height as f64 / 32.0;
@@ -180,9 +183,10 @@ fn run(command_args: CommandArgs) {
                         let dy = y as f64 * h;
 
                         if chip8.display.get(x, y) != 0 {
-                            let rect = [dx + w * 0.1, dy + h * 0.1, w * 0.9, h * 0.9];
+                            // let rect = [dx + w * 0.1, dy + h * 0.1, w * 0.9, h * 0.9];
+                            let rect = [dx, dy, w, h];
 
-                            rectangle([1.0, 1.0, 1.0, 1.0], rect, c.transform, g);
+                            rectangle(solid_color, rect, c.transform, g);
                         }
                     }
                 }

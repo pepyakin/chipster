@@ -6,14 +6,14 @@ const SAMPLE_RATE: f64 = 44_100.0;
 const FRAMES_PER_BUFFER: u32 = 64;
 const TABLE_SIZE: usize = 200;
 
-pub struct PortAudioHolder {
+pub struct BeeperFactory {
     portaudio: portaudio::PortAudio,
 }
 
-impl PortAudioHolder {
-    pub fn new() -> PortAudioHolder {
+impl BeeperFactory {
+    pub fn new() -> BeeperFactory {
         let p = portaudio::PortAudio::new().unwrap();
-        PortAudioHolder { portaudio: p }
+        BeeperFactory { portaudio: p }
     }
 
     pub fn create_beeper<'a>(&'a mut self) -> Beeper<'a> {

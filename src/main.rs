@@ -100,8 +100,8 @@ fn build_window() -> PistonWindow {
 
 fn main() {
     let args = CommandArgs::parse();
-    let mut portaudio_holder = audio::PortAudioHolder::new();
-    let app = App::new(args, portaudio_holder.create_beeper());
+    let mut beeper_factory = audio::BeeperFactory::new();
+    let app = App::new(args, beeper_factory.create_beeper());
     let piston_window = build_window();
     
     app.run(piston_window);

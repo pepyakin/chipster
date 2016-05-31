@@ -23,14 +23,14 @@ impl CommandArgs {
         use clap::{Arg, App};
 
         let matches = App::new("chip8 emulator")
-            .arg(Arg::with_name("INPUT")
-                .help("Sets the input file to use")
+            .arg(Arg::with_name("ROM_FILE")
+                .help("rom file to load")
                 .required(true))
             .arg(Arg::with_name("cycles per second")
                 .short("c")
                 .long("cycles-per-sec")
                 .value_name("cycles_per_second")
-                .help("Something between 500-1000")
+                .help("How many Chip8 cycles should be executed per second. Values between 500-1000 should be fine.")
                 .takes_value(true))
             .get_matches();
 
@@ -39,7 +39,7 @@ impl CommandArgs {
             .unwrap();
 
         CommandArgs {
-            bin_file_name: matches.value_of("INPUT").unwrap().to_string(),
+            bin_file_name: matches.value_of("ROM_FILE").unwrap().to_string(),
             cycles_per_second: cps,
         }
     }

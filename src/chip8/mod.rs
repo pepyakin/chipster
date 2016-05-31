@@ -3,7 +3,6 @@ mod timer;
 mod display;
 
 use std::fmt;
-use std::time::{Duration, SystemTime};
 use rand::Rng;
 use rand;
 
@@ -60,7 +59,6 @@ impl Chip8 {
             keyboard: [0; 16],
         };
 
-
         for i in 0..80 {
             chip8.memory[i] = FONT_SPRITES[i];
         }
@@ -113,7 +111,6 @@ impl Chip8 {
         } else if (instruction & 0xF000) == 0x2000 {
             // 2nnn - CALL addr
             let addr = parsed.nnn();
-            let pc = self.pc;
             self.stack.push(next_pc);
             next_pc = addr;
         } else if (instruction & 0xF000) == 0x3000 {

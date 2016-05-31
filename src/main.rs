@@ -11,7 +11,6 @@ mod chip8;
 use std::path::Path;
 use std::io::Read;
 use std::fs::File;
-use std::env;
 
 fn read_bin<P: AsRef<Path>>(path: P) -> Box<[u8]> {
     let mut bin_file = File::open(path).unwrap();
@@ -117,7 +116,6 @@ fn run(command_args: CommandArgs) {
     window.set_max_fps(60);
     
     let mut paused = false;
-    let mut left_from_last_update: f64 = 0.0;
     while let Some(e) = window.next() {
         if let Some(button) = e.press_args() {
             if let Some(pressed_key) = map_keycode(button) {
@@ -148,16 +146,15 @@ fn run(command_args: CommandArgs) {
             // in https://github.com/AfBu/haxe-chip-8-emulator/wiki/(Super)CHIP-8-Secrets
 
             // TODO: Test for low values.
-            let dt = args.dt + left_from_last_update;
+            let dt = args.dt;
             let cycles_to_perform = (dt * command_args.cycles_per_second as f64).floor() as usize;
             let dt_per_cycle = dt / cycles_to_perform as f64;
-            println!("left_from_last_update={}, dt={}, dt_per_cycle={}, cycles_to_perform={}",
-                     left_from_last_update,
+            println!("dt={}, dt_per_cycle={}, cycles_to_perform={}",
                      dt,
                      dt_per_cycle,
                      cycles_to_perform);
 
-            for cycle_number in 0..cycles_to_perform {
+            for _cycle_number in 0..cycles_to_perform {
                 // println!("{}/{}", cycle_number, cycles_to_perform);
 
                 chip8.cycle();

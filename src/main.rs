@@ -9,14 +9,16 @@ mod audio;
 mod chip8;
 
 use std::path::Path;
-use std::io::Read;
+use std::io;
 use std::fs::File;
 
-fn read_bin<P: AsRef<Path>>(path: P) -> Box<[u8]> {
-    let mut bin_file = File::open(path).unwrap();
+fn read_bin<P: AsRef<Path>>(path: P) -> Result<Box<[u8]>, io::Error> {
+    use std::io::Read;
+    
+    let mut bin_file = try!(File::open(path));
     let mut bin_buffer = Vec::new();
-    bin_file.read_to_end(&mut bin_buffer);
-    bin_buffer.into_boxed_slice()
+    try!(bin_file.read_to_end(&mut bin_buffer));
+    Ok(bin_buffer.into_boxed_slice())
 }
 
 fn map_keycode(k: Button) -> Option<usize> {
@@ -79,8 +81,6 @@ impl CommandArgs {
                 .takes_value(true))
             .get_matches();
             
-            
-        println!("{:#?}", matches);
         let cps = matches.value_of("cycles per second")
                 .and_then(|s| s.parse::<u32>().ok())
                 .unwrap();
@@ -99,7 +99,7 @@ fn main() {
 
 fn run(command_args: CommandArgs) {
     let bin_file_name = command_args.bin_file_name;
-    let bin_data = read_bin(bin_file_name);
+    let bin_data = read_bin(bin_file_name).expect("failed to read rom");
 
     let mut portaudio_holder = audio::PortAudioHolder::new();
     let mut beeper = portaudio_holder.create_beeper();

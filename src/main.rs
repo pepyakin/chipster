@@ -12,7 +12,7 @@ use std::path::Path;
 use std::io;
 use std::fs::File;
 
-fn read_bin<P: AsRef<Path>>(path: P) -> Result<Box<[u8]>, io::Error> {
+fn read_rom<P: AsRef<Path>>(path: P) -> Result<Box<[u8]>, io::Error> {
     use std::io::Read;
     
     let mut bin_file = try!(File::open(path));
@@ -99,7 +99,7 @@ fn main() {
 
 fn run(command_args: CommandArgs) {
     let bin_file_name = command_args.bin_file_name;
-    let bin_data = read_bin(bin_file_name).expect("failed to read rom");
+    let bin_data = read_rom(bin_file_name).expect("failed to read rom");
 
     let mut portaudio_holder = audio::PortAudioHolder::new();
     let mut beeper = portaudio_holder.create_beeper();

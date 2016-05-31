@@ -13,45 +13,6 @@ use std::io;
 use std::fs::File;
 use chip8::Chip8;
 
-fn map_keycode(k: Button) -> Option<usize> {
-    // Classical layout, see http://devernay.free.fr/hacks/chip8/C8TECH10.HTM#2.3
-    // +---+---+---+---+
-    // | 1 | 2 | 3 | C |
-    // +---+---+---+---+
-    // | 4 | 5 | 6 | D |
-    // +---+---+---+---+
-    // | 7 | 8 | 9 | E |
-    // +---+---+---+---+
-    // | A | 0 | B | F |
-    // +---+---+---+---+
-
-    if let Button::Keyboard(k) = k {
-        return match k {
-            Key::D1 => Some(0x1),
-            Key::D2 => Some(0x2),
-            Key::D3 => Some(0x3),
-            Key::D4 => Some(0xC),
-
-            Key::Q => Some(0x4),
-            Key::W => Some(0x5),
-            Key::E => Some(0x6),
-            Key::R => Some(0xD),
-
-            Key::A => Some(0x7),
-            Key::S => Some(0x8),
-            Key::D => Some(0x9),
-            Key::F => Some(0xE),
-
-            Key::Z => Some(0xA),
-            Key::X => Some(0x0),
-            Key::C => Some(0xB),
-            Key::V => Some(0xF),
-            _ => None,
-        };
-    }
-    return None;
-}
-
 struct CommandArgs {
     bin_file_name: String,
     cycles_per_second: u32, // default: 500
@@ -85,17 +46,16 @@ impl CommandArgs {
 }
 
 fn build_window() -> PistonWindow {
-    
     let title = "Chip8";
-        let mut window: PistonWindow = WindowSettings::new(title, [640, 320])
-            .exit_on_esc(true)
-            .build()
-            .unwrap_or_else(|e| panic!("Failed to build PistonWindow: {}", e));
+    let mut window: PistonWindow = WindowSettings::new(title, [640, 320])
+        .exit_on_esc(true)
+        .build()
+        .unwrap_or_else(|e| panic!("Failed to build PistonWindow: {}", e));
 
-        window.set_swap_buffers(false);
-        window.set_max_fps(60);
-        
-        window
+    window.set_swap_buffers(false);
+    window.set_max_fps(60);
+
+    window
 }
 
 fn main() {
@@ -103,7 +63,7 @@ fn main() {
     let mut beeper_factory = audio::BeeperFactory::new();
     let app = App::new(args, beeper_factory.create_beeper());
     let piston_window = build_window();
-    
+
     app.run(piston_window);
 }
 
@@ -141,38 +101,34 @@ impl<'a> App<'a> {
     }
 
     fn run(mut self, mut window: PistonWindow) {
-        while let Some(e) = window.next() {            
+        while let Some(e) = window.next() {
             if Some(Button::Keyboard(Key::Space)) == e.release_args() {
                 self.paused = !self.paused;
             }
-            
+
             if self.paused {
                 continue;
             }
-            
-            self.handle_input(&e);
 
+            self.handle_input(&e);
             self.update(&e);
             self.render(&e, &mut window);
         }
     }
-    
+
     fn handle_input(&mut self, e: &Event) {
         if let Some(button) = e.press_args() {
             if let Some(pressed_key) = map_keycode(button) {
                 self.chip8.keyboard[pressed_key] = 1;
-
-                println!("key pressed {:?}", pressed_key);
             }
         }
         if let Some(button) = e.release_args() {
             if let Some(released_key) = map_keycode(button) {
                 self.chip8.keyboard[released_key] = 0;
-                println!("key released {:?}", released_key);
             }
         }
     }
-    
+
     fn update(&mut self, e: &Event) {
         if let Some(args) = e.update_args() {
             // See "Secrets of emulation" chapter
@@ -180,13 +136,13 @@ impl<'a> App<'a> {
 
             // TODO: Test for low values.
             let dt = args.dt;
-            let cycles_to_perform = (dt * self.command_args.cycles_per_second as f64)
-                .floor() as usize;
+            let cycles_to_perform =
+                (dt * self.command_args.cycles_per_second as f64).floor() as usize;
             let dt_per_cycle = dt / cycles_to_perform as f64;
             println!("dt={}, dt_per_cycle={}, cycles_to_perform={}",
-                        dt,
-                        dt_per_cycle,
-                        cycles_to_perform);
+                     dt,
+                     dt_per_cycle,
+                     cycles_to_perform);
 
             for _cycle_number in 0..cycles_to_perform {
                 // println!("{}/{}", cycle_number, cycles_to_perform);
@@ -198,7 +154,7 @@ impl<'a> App<'a> {
             self.beeper.set_started(self.chip8.is_beeping());
         }
     }
-    
+
     fn render(&mut self, e: &Event, window: &mut PistonWindow) {
         if let Some(args) = e.render_args() {
             window.draw_2d(e, |c, g| {
@@ -227,4 +183,43 @@ impl<'a> App<'a> {
             Window::swap_buffers(window);
         }
     }
+}
+
+fn map_keycode(k: Button) -> Option<usize> {
+    // Classical layout, see http://devernay.free.fr/hacks/chip8/C8TECH10.HTM#2.3
+    // +---+---+---+---+
+    // | 1 | 2 | 3 | C |
+    // +---+---+---+---+
+    // | 4 | 5 | 6 | D |
+    // +---+---+---+---+
+    // | 7 | 8 | 9 | E |
+    // +---+---+---+---+
+    // | A | 0 | B | F |
+    // +---+---+---+---+
+
+    if let Button::Keyboard(k) = k {
+        return match k {
+            Key::D1 => Some(0x1),
+            Key::D2 => Some(0x2),
+            Key::D3 => Some(0x3),
+            Key::D4 => Some(0xC),
+
+            Key::Q => Some(0x4),
+            Key::W => Some(0x5),
+            Key::E => Some(0x6),
+            Key::R => Some(0xD),
+
+            Key::A => Some(0x7),
+            Key::S => Some(0x8),
+            Key::D => Some(0x9),
+            Key::F => Some(0xE),
+
+            Key::Z => Some(0xA),
+            Key::X => Some(0x0),
+            Key::C => Some(0xB),
+            Key::V => Some(0xF),
+            _ => None,
+        };
+    }
+    return None;
 }

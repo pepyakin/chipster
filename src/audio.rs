@@ -30,8 +30,8 @@ impl<'a> Beeper<'a> {
     fn new(p: &'a mut portaudio::PortAudio) -> Beeper<'a> {
         use std::f64::consts::PI;
 
-        let settings =
-            p.default_output_stream_settings(CHANNELS, SAMPLE_RATE, FRAMES_PER_BUFFER).unwrap();
+        let settings = p.default_output_stream_settings(CHANNELS, SAMPLE_RATE, FRAMES_PER_BUFFER)
+            .unwrap();
 
         let mut sine = [0.0; TABLE_SIZE];
         for i in 0..TABLE_SIZE {

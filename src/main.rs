@@ -11,15 +11,7 @@ mod chip8;
 use std::path::Path;
 use std::io;
 use std::fs::File;
-
-fn read_rom<P: AsRef<Path>>(path: P) -> Result<Box<[u8]>, io::Error> {
-    use std::io::Read;
-    
-    let mut bin_file = try!(File::open(path));
-    let mut bin_buffer = Vec::new();
-    try!(bin_file.read_to_end(&mut bin_buffer));
-    Ok(bin_buffer.into_boxed_slice())
-}
+use chip8::Chip8;
 
 fn map_keycode(k: Button) -> Option<usize> {
     // Classical layout, see http://devernay.free.fr/hacks/chip8/C8TECH10.HTM#2.3
@@ -80,10 +72,10 @@ impl CommandArgs {
                 .help("Something between 500-1000")
                 .takes_value(true))
             .get_matches();
-            
+
         let cps = matches.value_of("cycles per second")
-                .and_then(|s| s.parse::<u32>().ok())
-                .unwrap();
+            .and_then(|s| s.parse::<u32>().ok())
+            .unwrap();
 
         CommandArgs {
             bin_file_name: matches.value_of("INPUT").unwrap().to_string(),
@@ -92,83 +84,127 @@ impl CommandArgs {
     }
 }
 
-fn main() {
-    let args = CommandArgs::parse();
-    run(args);
+fn build_window() -> PistonWindow {
+    
+    let title = "Chip8";
+        let mut window: PistonWindow = WindowSettings::new(title, [640, 320])
+            .exit_on_esc(true)
+            .build()
+            .unwrap_or_else(|e| panic!("Failed to build PistonWindow: {}", e));
+
+        window.set_swap_buffers(false);
+        window.set_max_fps(60);
+        
+        window
 }
 
-fn run(command_args: CommandArgs) {
-    let bin_file_name = command_args.bin_file_name;
-    let bin_data = read_rom(bin_file_name).expect("failed to read rom");
-
+fn main() {
+    let args = CommandArgs::parse();
     let mut portaudio_holder = audio::PortAudioHolder::new();
-    let mut beeper = portaudio_holder.create_beeper();
-
-    let mut chip8 = chip8::Chip8::with_bin(bin_data);
-
-    let title = "Chip8";
-    let mut window: PistonWindow = WindowSettings::new(title, [640, 320])
-        .exit_on_esc(true)
-        .build()
-        .unwrap_or_else(|e| panic!("Failed to build PistonWindow: {}", e));
-
-    window.set_swap_buffers(false);
-    window.set_max_fps(60);
+    let app = App::new(args, portaudio_holder.create_beeper());
+    let piston_window = build_window();
     
-    let mut paused = false;
-    while let Some(e) = window.next() {
+    app.run(piston_window);
+}
+
+struct App<'a> {
+    command_args: CommandArgs,
+    chip8: Chip8,
+    paused: bool,
+    beeper: audio::Beeper<'a>,
+}
+
+fn read_rom<P: AsRef<Path>>(path: P) -> Result<Box<[u8]>, io::Error> {
+    use std::io::Read;
+
+    let mut bin_file = try!(File::open(path));
+    let mut bin_buffer = Vec::new();
+    try!(bin_file.read_to_end(&mut bin_buffer));
+    Ok(bin_buffer.into_boxed_slice())
+}
+
+fn prepare_chip8_vm(rom_file_name: &String) -> Chip8 {
+    let rom_data = read_rom(rom_file_name).expect("failed to read rom");
+    Chip8::with_bin(rom_data)
+}
+
+impl<'a> App<'a> {
+    fn new(command_args: CommandArgs, beeper: audio::Beeper<'a>) -> App<'a> {
+        let chip8 = prepare_chip8_vm(&command_args.bin_file_name);
+
+        App {
+            command_args: command_args,
+            chip8: chip8,
+            paused: false,
+            beeper: beeper,
+        }
+    }
+
+    fn run(mut self, mut window: PistonWindow) {
+        while let Some(e) = window.next() {            
+            if Some(Button::Keyboard(Key::Space)) == e.release_args() {
+                self.paused = !self.paused;
+            }
+            
+            if self.paused {
+                continue;
+            }
+            
+            self.handle_input(&e);
+
+            self.update(&e);
+            self.render(&e, &mut window);
+        }
+    }
+    
+    fn handle_input(&mut self, e: &Event) {
         if let Some(button) = e.press_args() {
             if let Some(pressed_key) = map_keycode(button) {
-                chip8.keyboard[pressed_key] = 1;
+                self.chip8.keyboard[pressed_key] = 1;
 
                 println!("key pressed {:?}", pressed_key);
-                // println!("{:?}", chip8.keyboard);
             }
         }
         if let Some(button) = e.release_args() {
-            if button == Button::Keyboard(Key::Space) {
-                paused = !paused;
-            }
-
             if let Some(released_key) = map_keycode(button) {
-                chip8.keyboard[released_key] = 0;
+                self.chip8.keyboard[released_key] = 0;
                 println!("key released {:?}", released_key);
-                // println!("{:?}", chip8.keyboard);
             }
         }
-
-        if paused {
-            continue;
-        }
-
+    }
+    
+    fn update(&mut self, e: &Event) {
         if let Some(args) = e.update_args() {
             // See "Secrets of emulation" chapter
             // in https://github.com/AfBu/haxe-chip-8-emulator/wiki/(Super)CHIP-8-Secrets
 
             // TODO: Test for low values.
             let dt = args.dt;
-            let cycles_to_perform = (dt * command_args.cycles_per_second as f64).floor() as usize;
+            let cycles_to_perform = (dt * self.command_args.cycles_per_second as f64)
+                .floor() as usize;
             let dt_per_cycle = dt / cycles_to_perform as f64;
             println!("dt={}, dt_per_cycle={}, cycles_to_perform={}",
-                     dt,
-                     dt_per_cycle,
-                     cycles_to_perform);
+                        dt,
+                        dt_per_cycle,
+                        cycles_to_perform);
 
             for _cycle_number in 0..cycles_to_perform {
                 // println!("{}/{}", cycle_number, cycles_to_perform);
 
-                chip8.cycle();
-                chip8.update_timers(dt_per_cycle);
+                self.chip8.cycle();
+                self.chip8.update_timers(dt_per_cycle);
             }
 
-            beeper.set_started(chip8.is_beeping());
+            self.beeper.set_started(self.chip8.is_beeping());
         }
-
+    }
+    
+    fn render(&mut self, e: &Event, window: &mut PistonWindow) {
         if let Some(args) = e.render_args() {
-            window.draw_2d(&e, |c, g| {
+            window.draw_2d(e, |c, g| {
                 let clear_color = [0.98, 0.95, 0.86, 1.0];
                 let solid_color = [0.02, 0.12, 0.15, 1.0];
-               
+
                 clear(clear_color, g);
 
                 let w = args.width as f64 / 64.0;
@@ -179,7 +215,7 @@ fn run(command_args: CommandArgs) {
                         let dx = x as f64 * w;
                         let dy = y as f64 * h;
 
-                        if chip8.display.get(x, y) != 0 {
+                        if self.chip8.display.get(x, y) != 0 {
                             // let rect = [dx + w * 0.1, dy + h * 0.1, w * 0.9, h * 0.9];
                             let rect = [dx, dy, w, h];
 
@@ -188,7 +224,7 @@ fn run(command_args: CommandArgs) {
                     }
                 }
             });
-            Window::swap_buffers(&mut window);
+            Window::swap_buffers(window);
         }
     }
 }

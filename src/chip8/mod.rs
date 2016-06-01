@@ -77,10 +77,9 @@ impl Chip8 {
 
     pub fn cycle(&mut self) {
         let instruction = {
+            use byteorder::{ByteOrder, BigEndian};
             let actual_pc = self.pc as usize;
-            let first_byte = self.memory[actual_pc] as u16;
-            let second_byte = self.memory[actual_pc + 1] as u16;
-            (first_byte << 8) | second_byte
+            BigEndian::read_u16(&self.memory[actual_pc..])
         };
 
         // println!("{:04x}: {:04x}", self.pc, instruction);

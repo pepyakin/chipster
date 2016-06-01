@@ -2,6 +2,7 @@ extern crate rand;
 extern crate portaudio;
 extern crate piston_window;
 extern crate clap;
+extern crate byteorder;
 
 use piston_window::*;
 

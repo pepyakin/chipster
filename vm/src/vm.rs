@@ -51,13 +51,12 @@ impl Chip8 {
     }
 
     pub fn cycle(&mut self) {
-        let instruction = {
+        let instruction_word = {
             use byteorder::{ByteOrder, BigEndian};
             let actual_pc = self.pc as usize;
-            BigEndian::read_u16(&self.memory[actual_pc..])
+            InstructionWord(BigEndian::read_u16(&self.memory[actual_pc..]))
         };
-
-        // println!("{:04x}: {:04x}", self.pc, instruction);
+        let instruction = Instruction::decode(instruction_word);
         let next_pc = self.execute_instruction(instruction);
         self.pc = next_pc;
     }
@@ -67,232 +66,218 @@ impl Chip8 {
         self.st.step(dt);
     }
 
-    fn execute_instruction(&mut self, instruction: u16) -> u16 {
-        let instruction_word = InstructionWord(instruction);
-
+    fn execute_instruction(&mut self, instruction: Instruction) -> u16 {
+        use instruction::Instruction::*;
+        
         let mut next_pc = self.pc + 2;
-        if instruction == 0x00E0 {
-            // 00E0 - CLS
-            self.display.clear();
-        } else if instruction == 0x00EE {
-            // 00EE - RET
-            let retaddr = self.stack.pop();
-            next_pc = retaddr;
-        } else if (instruction & 0xF000) == 0x1000 {
-            // 1nnn - JP addr
-            let addr = instruction_word.nnn();
-            next_pc = addr;
-        } else if (instruction & 0xF000) == 0x2000 {
-            // 2nnn - CALL addr
-            let addr = instruction_word.nnn();
-            self.stack.push(next_pc);
-            next_pc = addr;
-        } else if (instruction & 0xF000) == 0x3000 {
-            // 3xkk - SE Vx, byte
-            let vx = instruction_word.x_reg();
-            let imm = instruction_word.kk();
-            if self.gpr[vx] == imm {
-                next_pc += 2;
-            }
-        } else if (instruction & 0xF000) == 0x4000 {
-            // 4xkk - SNE Vx, byte
-            let vx = instruction_word.x_reg();
-            let imm = instruction_word.kk();
-            if self.gpr[vx] != imm {
-                next_pc += 2;
-            }
-        } else if (instruction & 0xF000) == 0x5000 {
-            // 5xy0 - SE Vx, Vy
-            let vx = instruction_word.x_reg();
-            let vy = instruction_word.y_reg();
-            if self.gpr[vx] == self.gpr[vy] {
-                next_pc += 2;
-            }
-        } else if (instruction & 0xF000) == 0x6000 {
-            // 6xkk - LD Vx, byte
-            let vx = instruction_word.x_reg();
-            let imm = instruction_word.kk();
-            self.gpr[vx] = imm;
-        } else if (instruction & 0xF000) == 0x7000 {
-            // 7xkk - ADD Vx, byte
-            let vx = instruction_word.x_reg();
-            let imm = instruction_word.kk();
-            self.gpr[vx] = self.gpr[vx].wrapping_add(imm);
-        } else if (instruction & 0xF00F) == 0x8000 {
-            // 8xy0 - LD Vx, Vy
-            let vx = instruction_word.x_reg();
-            let vy = instruction_word.y_reg();
-            self.gpr[vx] = self.gpr[vy];
-        } else if (instruction & 0xF00F) == 0x8001 {
-            // Set Vx = Vx OR Vy.
-            let vx = instruction_word.x_reg();
-            let vy = instruction_word.y_reg();
-            self.gpr[vx] = self.gpr[vx] | self.gpr[vy];
-        } else if (instruction & 0xF00F) == 0x8002 {
-            // 8xy2 - AND Vx, Vy
-            let vx = instruction_word.x_reg();
-            let vy = instruction_word.y_reg();
-            self.gpr[vx] = self.gpr[vx] & self.gpr[vy];
-        } else if (instruction & 0xF00F) == 0x8003 {
-            // 8xy3 - XOR Vx, Vy
-            let vx = instruction_word.x_reg();
-            let vy = instruction_word.y_reg();
-            self.gpr[vx] = self.gpr[vx] ^ self.gpr[vy];
-        } else if (instruction & 0xF00F) == 0x8004 {
-            // 8xy4 - ADD Vx, Vy
-            let vx = instruction_word.x_reg();
-            let vy = instruction_word.y_reg();
-            let (v, overflow) = self.gpr[vx].overflowing_add(self.gpr[vy]);
-            self.gpr[vx] = v;
-            self.gpr[VF] = if overflow {
-                1
-            } else {
-                0
-            };
-        } else if (instruction & 0xF00F) == 0x8005 {
-            // 8xy5 - SUB Vx, Vy
-            let vx = instruction_word.x_reg();
-            let vy = instruction_word.y_reg();
 
-            let minuend = self.gpr[vx];
-            let subtrahend = self.gpr[vy];
-            let (v, borrow) = minuend.overflowing_sub(subtrahend);
-
-            self.gpr[vx] = v;
-            self.gpr[VF] = if borrow {
-                0
-            } else {
-                1
+        match instruction {
+            ClearScreen => self.display.clear(),
+            Ret => {
+                let retaddr = self.stack.pop();
+                next_pc = retaddr;
+            },
+            Sys(addr) => {
+                unimplemented!();
+            },
+            Jump(addr) => {
+                next_pc = addr.0;
+            },
+            Call(addr) => {
+                self.stack.push(next_pc);
+                next_pc = addr.0;
+            },
+            SkipEqImm { 
+                vx: vx,
+                imm: imm,
+                inv: inv
+            } => {
+                if !inv {
+                    if self.read_gpr(vx) == imm.0 {
+                        next_pc += 2;
+                    }
+                } else {
+                    if self.read_gpr(vx) != imm.0 {
+                        next_pc += 2;
+                    }
+                }
+            },
+            SkipEqReg {
+                vx: vx,
+                vy: vy,
+                inv: inv
+            } => {
+                if !inv {
+                    if self.read_gpr(vx) == self.read_gpr(vy) {
+                        next_pc += 2;
+                    }
+                } else {
+                    if self.read_gpr(vx) != self.read_gpr(vy) {
+                        next_pc += 2;
+                    }
+                }
+            },
+            PutImm {
+                vx: vx,
+                imm: imm
+            } => {
+                self.write_gpr(vx, imm.0);
+            },
+            AddImm {
+                vx: vx,
+                imm: imm
+            } => {
+                let x = self.read_gpr(vx);
+                self.write_gpr(vx, x.wrapping_add(imm.0));
+            },
+            Apply {
+                vx: vx,
+                vy: vy,
+                f: f
+            } => {
+                let x = self.read_gpr(vx);
+                let y = self.read_gpr(vy);
+                
+                match f {
+                    Fun::Id => {
+                        self.write_gpr(vx, y);
+                    },
+                    Fun::Or => {
+                        self.write_gpr(vx, x | y);
+                    },
+                    Fun::And => {
+                        self.write_gpr(vx, x & y);
+                    },
+                    Fun::Xor => {
+                        self.write_gpr(vx, x ^ y);
+                    },
+                    Fun::Add => {
+                        let (v, overflow) = x.overflowing_add(y);
+                        self.write_gpr(vx, v);
+                        self.write_gpr(Reg::Vf, if overflow { 1 } else { 0 });
+                    },
+                    Fun::Subtract => {
+                        let (v, borrow) = x.overflowing_sub(y);
+                        self.write_gpr(vx, v);
+                        self.write_gpr(Reg::Vf, if borrow { 0 } else { 1 });
+                    },
+                    Fun::ShiftRight => {
+                        self.write_gpr(vx, y >> 1);
+                        self.write_gpr(Reg::Vf, y & 0x01);
+                    },
+                    Fun::SubtractInv => {
+                        let (v, borrow) = y.overflowing_sub(x);
+                        self.write_gpr(vx, v);
+                        self.write_gpr(Reg::Vf, if borrow { 0 } else { 1 });
+                    },
+                    Fun::ShiftLeft => {
+                        self.write_gpr(vx, y << 1);
+                        self.write_gpr(Reg::Vf, y << 1);
+                    }
+                }
+            },
+            SetI(addr) => {
+                self.i = addr.0;
+            },
+            JumpPlusV0(addr) => {
+                panic!("instruction not implemented 0xBxxx");
+            },
+            Randomize { 
+                vx: vx, 
+                imm: imm 
+            } => {
+                let random_byte = rand::thread_rng().gen::<u8>();
+                self.write_gpr(vx, random_byte & imm.0);
+            },
+            
+            Draw {
+                vx: vx,
+                vy: vy,
+                n: n
+            } => {
+                let x = self.read_gpr(vx) as usize;
+                let y = self.read_gpr(vy) as usize;
+                let from = self.i as usize;
+                let to = from + (n.0 as usize);
+                
+                let collision_bit = {
+                    let sprite = &self.memory[from..to];
+                    self.display.draw(x, y, sprite)
+                };
+                
+                self.write_gpr(Reg::Vf, if collision_bit { 1 } else { 0 });
+            },
+            SkipPressed {
+                vx: vx,
+                inv: inv
+            } => {
+                let x = self.read_gpr(vx) as usize;
+                if !inv {
+                    if self.keyboard[x] == 1 {
+                        next_pc += 2;
+                    }
+                } else {
+                    if self.keyboard[x] != 1 {
+                        next_pc += 2;
+                    }
+                }
+            },
+            GetDT(vx) => {
+                let dt = self.dt.get();
+                self.write_gpr(vx, dt);
+            },
+            WaitKey(vx) => {
+                panic!("instruction not implemented 0xFxxA");
+            },
+            SetDT(vx) => {
+                let x = self.read_gpr(vx);
+                self.dt.set(x);
+            },
+            SetST(vx) => {
+                let x = self.read_gpr(vx);
+                self.st.set(x);
+            },
+            AddI(vx) => {
+                let x = self.read_gpr(vx) as u16;
+                self.i = self.i.wrapping_add(x);
+            },
+            LoadGlyph(vx) => {
+                let v = self.read_gpr(vx);
+                self.i = FONT_MEMORY_OFFSET + v as u16 * 5;
+            },
+            StoreBCD(vx) => {
+                let v = self.read_gpr(vx);
+                let i = self.i as usize;
+                
+                self.memory[i] = v / 100;
+                self.memory[i + 1] = (v / 10) % 10;
+                self.memory[i + 2] = (v % 100) % 10;
+            },
+            StoreRegs(vx) => {
+                let i = self.i as usize;
+                for offset in 0..(vx.index() as usize + 1) {
+                   self.memory[i + offset] = self.gpr[offset];
+                }
+                self.i += vx as u16 + 1;
+            },
+            LoadRegs(vx) => {
+                let i = self.i as usize;
+                for offset in 0..(vx.index() as usize + 1) {
+                   self.gpr[offset] = self.memory[i + offset];
+                }
+                self.i += vx as u16 + 1;
             }
-        } else if (instruction & 0xF00F) == 0x8006 {
-            // 8xy6 - SHR Vx {, Vy}
-            let vx = instruction_word.x_reg();
-            let vy = instruction_word.y_reg();
-
-            self.gpr[VF] = self.gpr[vy] & 0x01;
-            self.gpr[vx] = self.gpr[vy] >> 1;
-        } else if (instruction & 0xF00F) == 0x8007 {
-            // 8xy7 - SUBN Vx, Vy
-            let vx = instruction_word.x_reg();
-            let vy = instruction_word.y_reg();
-
-            let minuend = self.gpr[vx as usize];
-            let subtrahend = self.gpr[vy as usize];
-
-            let (v, borrow) = subtrahend.overflowing_sub(minuend);
-
-            self.gpr[vx] = v;
-            self.gpr[VF] = if borrow {
-                0
-            } else {
-                1
-            };
-        } else if (instruction & 0xF00F) == 0x800E {
-            // 8xyE - SHL Vx {, Vy}
-            let vx = instruction_word.x_reg();
-            let vy = instruction_word.y_reg();
-
-            self.gpr[VF] = self.gpr[vy] >> 7;
-            self.gpr[vx] = self.gpr[vy] << 1;
-        } else if (instruction & 0xF000) == 0x9000 {
-            // 9xy0 - SNE Vx, Vy
-            let vx = instruction_word.x_reg();
-            let vy = instruction_word.y_reg();
-            if self.gpr[vx] != self.gpr[vy] {
-                next_pc += 2;
-            }
-        } else if (instruction & 0xF000) == 0xA000 {
-            // Annn - LD I, addr
-            let addr = instruction_word.nnn();
-            self.i = addr;
-        } else if (instruction & 0xF000) == 0xB000 {
-            panic!("instruction not implemented 0xBxxx");
-        } else if (instruction & 0xF000) == 0xC000 {
-            // Cxkk - RND Vx, byte
-            let vx = instruction_word.x_reg();
-            let imm = instruction_word.kk();
-            let random_byte = rand::thread_rng().gen::<u8>();
-            self.gpr[vx] = random_byte & imm;
-        } else if (instruction & 0xF000) == 0xD000 {
-            // Dxyn - DRW Vx, Vy, nibble
-            let x = self.gpr[instruction_word.x_reg()] as usize;
-            let y = self.gpr[instruction_word.y_reg()] as usize;
-            let from = self.i as usize;
-            let to = from + (instruction_word.n() as usize);
-
-            self.gpr[VF] = if self.display.draw(x, y, &self.memory[from..to]) {
-                1
-            } else {
-                0
-            };
-        } else if (instruction & 0xF0FF) == 0xE09E {
-            // Ex9E - SKP Vx
-            let x = self.gpr[instruction_word.x_reg()] as usize;
-            if self.keyboard[x] == 1 {
-                next_pc += 2;
-            }
-        } else if (instruction & 0xF0FF) == 0xE0A1 {
-            // ExA1 - SKNP Vx
-            let x = self.gpr[instruction_word.x_reg()] as usize;
-            if self.keyboard[x] != 1 {
-                next_pc += 2;
-            }
-        } else if (instruction & 0xF0FF) == 0xF007 {
-            // Fx07 - LD Vx, DT
-            let vx = instruction_word.x_reg();
-            self.gpr[vx] = self.dt.get();
-        } else if (instruction & 0xF0FF) == 0xF00A {
-            // Fx0A - LD Vx, K
-            // let vx = instruction_word.x_reg();
-            // self.gpr[vx] = 0; // TODO: Wait for actual keyboard input.
-            panic!("instruction not implemented 0xFxxA");
-        } else if (instruction & 0xF0FF) == 0xF015 {
-            // Fx15 - LD DT, Vx
-            let vx = instruction_word.x_reg();
-            self.dt.set(self.gpr[vx]);
-        } else if (instruction & 0xF0FF) == 0xF018 {
-            // Fx18 - LD ST, Vx
-            let vx = instruction_word.x_reg();
-            self.st.set(self.gpr[vx]);
-        } else if (instruction & 0xF0FF) == 0xF01E {
-            // Fx1E - ADD I, Vx
-            let vx = instruction_word.x_reg();
-            self.i = self.i.wrapping_add(self.gpr[vx] as u16);
-        } else if (instruction & 0xF0FF) == 0xF029 {
-            // Fx29 - LD F, Vx
-            let vx = instruction_word.x_reg();
-            let v = self.gpr[vx];
-            self.i = FONT_MEMORY_OFFSET + v as u16 * 5;
-        } else if (instruction & 0xF0FF) == 0xF033 {
-            // Fx33 - LD B, Vx
-            let vx = instruction_word.x_reg();
-            let v = self.gpr[vx];
-            let i = self.i as usize;
-
-            self.memory[i] = v / 100;
-            self.memory[i + 1] = (v / 10) % 10;
-            self.memory[i + 2] = (v % 100) % 10;
-        } else if (instruction & 0xF0FF) == 0xF055 {
-            // Fx55 - LD [I], Vx
-            let vx = instruction_word.x_reg();
-            let i = self.i as usize;
-            for offset in 0..(vx + 1) {
-                self.memory[i + offset] = self.gpr[offset];
-            }
-            self.i += vx as u16 + 1;
-        } else if (instruction & 0xF0FF) == 0xF065 {
-            // Fx65 - LD Vx, [I]
-            let vx = instruction_word.x_reg();
-            let i = self.i as usize;
-            for offset in 0..(vx + 1) {
-                self.gpr[offset] = self.memory[i + offset];
-            }
-            self.i += vx as u16 + 1;
-        } else {
-            panic!("unrecognized instruction: 0x{:04x}", instruction);
         }
 
         next_pc
+    }
+    
+    fn read_gpr(&self, reg: Reg) -> u8 {
+        self.gpr[reg.index() as usize]
+    }
+    
+    fn write_gpr(&mut self, reg: Reg, value: u8) {
+        self.gpr[reg.index() as usize] = value;
     }
 
     pub fn is_beeping(&self) -> bool {
@@ -339,155 +324,3 @@ const FONT_SPRITES: [u8; 80] = [
 ];
 
 pub const VF: usize = 0x0F;
-
-#[cfg(test)]
-mod test {
-    use super::*;
-
-    impl Chip8 {
-        fn is_borrow_bit_set(&self) -> bool {
-            self.gpr[VF] == 0x00
-        }
-    }
-
-    #[test]
-    fn op_sub_eq() {
-        let mut chip8 = Chip8::new();
-
-        chip8.execute_instruction(0x6105); // LD  V1,  5
-        chip8.execute_instruction(0x6205); // LD  V2,  5
-        chip8.execute_instruction(0x8125); // SUB V1, V2
-
-        let result = chip8.gpr[0x01];
-        let borrowed = chip8.is_borrow_bit_set();
-
-        assert_eq!(result, 0);
-        assert_eq!(borrowed, false);
-    }
-
-    #[test]
-    fn op_sub_normal() {
-        let mut chip8 = Chip8::new();
-
-        chip8.execute_instruction(0x610A); // LD  V1, 10
-        chip8.execute_instruction(0x6205); // LD  V2,  5
-        chip8.execute_instruction(0x8125); // SUB V1, V2
-
-        let result = chip8.gpr[0x01];
-
-        assert_eq!(result, 5);
-        assert_eq!(chip8.is_borrow_bit_set(), false);
-    }
-
-    #[test]
-    fn op_sub_borrow() {
-        let mut chip8 = Chip8::new();
-
-        chip8.execute_instruction(0x6105); // LD  V1,  5
-        chip8.execute_instruction(0x620A); // LD  V2, 10
-        chip8.execute_instruction(0x8125); // SUB V1, V2
-
-        let result = chip8.gpr[0x01];
-
-        assert_eq!(result, -5i8 as u8);
-        assert_eq!(chip8.is_borrow_bit_set(), true);
-    }
-
-    #[test]
-    fn op_shr_shifted_1() {
-        let mut chip8 = Chip8::new();
-
-        chip8.execute_instruction(0x6103); // LD   V1, 0b0000_0011
-        chip8.execute_instruction(0x8216); // SHR  V2, V1
-
-        let result = chip8.gpr[0x02];
-        let shifted_bit = chip8.gpr[VF];
-
-        assert_eq!(result, 1);
-        assert_eq!(shifted_bit, 1);
-    }
-
-    #[test]
-    fn op_shr_shifted_0() {
-        let mut chip8 = Chip8::new();
-
-        chip8.execute_instruction(0x6106); // LD   V1, 0b0000_0110
-        chip8.execute_instruction(0x8216); // SHR  V2, V1
-
-        let result = chip8.gpr[0x02];
-        let shifted_bit = chip8.gpr[VF];
-
-        assert_eq!(result, 3);
-        assert_eq!(shifted_bit, 0);
-    }
-
-    #[test]
-    fn op_subn_eq() {
-        let mut chip8 = Chip8::new();
-
-        chip8.execute_instruction(0x6105); // LD   V1,  5
-        chip8.execute_instruction(0x6205); // LD   V2,  5
-        chip8.execute_instruction(0x8127); // SUBN V1, V2
-
-        let result = chip8.gpr[0x01];
-
-        assert_eq!(result, 0);
-        assert_eq!(chip8.is_borrow_bit_set(), false);
-    }
-
-    #[test]
-    fn op_subn_normal() {
-        let mut chip8 = Chip8::new();
-
-        chip8.execute_instruction(0x6105); // LD   V1,  5
-        chip8.execute_instruction(0x620A); // LD   V2, 10
-        chip8.execute_instruction(0x8127); // SUBN V1, V2
-
-        let result = chip8.gpr[0x01];
-
-        assert_eq!(result, 5);
-        assert_eq!(chip8.is_borrow_bit_set(), false);
-    }
-
-    #[test]
-    fn op_subn_borrow() {
-        let mut chip8 = Chip8::new();
-
-        chip8.execute_instruction(0x610A); // LD   V1, 10
-        chip8.execute_instruction(0x6205); // LD   V2,  5
-        chip8.execute_instruction(0x8127); // SUBN V1, V2
-
-        let result = chip8.gpr[0x01];
-
-        assert_eq!(result, -5i8 as u8);
-        assert_eq!(chip8.is_borrow_bit_set(), true);
-    }
-
-    #[test]
-    fn op_shl_shifted_1() {
-        let mut chip8 = Chip8::new();
-
-        chip8.execute_instruction(0x61C0); // LD   V1, 0b1100_0000
-        chip8.execute_instruction(0x821E); // SHL  V2, V1
-
-        let result = chip8.gpr[0x02];
-        let shifted_bit = chip8.gpr[VF];
-
-        assert_eq!(result, 0x80);
-        assert_eq!(shifted_bit, 1);
-    }
-
-    #[test]
-    fn op_shl_shifted_0() {
-        let mut chip8 = Chip8::new();
-
-        chip8.execute_instruction(0x6160); // LD   V1, 0b0110_0000
-        chip8.execute_instruction(0x821E); // SHL  V2, V1
-
-        let result = chip8.gpr[0x02];
-        let shifted_bit = chip8.gpr[VF];
-
-        assert_eq!(result, 0xC0);
-        assert_eq!(shifted_bit, 0);
-    }
-}

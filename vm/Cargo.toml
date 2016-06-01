@@ -8,3 +8,4 @@ authors = ["Sergey Pepyakin <s.pepyakin@gmail.com>"]
 [dependencies]
 rand = "0.3"
 byteorder = "0.5"
+enum_primitive = "*"

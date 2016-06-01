@@ -1,18 +1,17 @@
-extern crate rand;
 extern crate portaudio;
 extern crate piston_window;
 extern crate clap;
-extern crate byteorder;
+
+extern crate vm;
 
 use piston_window::*;
 
 mod audio;
-mod chip8;
 
 use std::path::Path;
 use std::io;
 use std::fs::File;
-use chip8::Chip8;
+use vm::Chip8;
 
 struct CommandArgs {
     bin_file_name: String,

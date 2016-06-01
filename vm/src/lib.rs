@@ -1,3 +1,6 @@
+extern crate rand;
+extern crate byteorder;
+
 mod stack;
 mod timer;
 mod display;

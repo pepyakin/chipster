@@ -5,6 +5,7 @@ use rand;
 use super::stack::Stack;
 use super::timer;
 use super::display;
+use super::instruction::*;
 
 pub struct Chip8 {
     memory: [u8; 4096],
@@ -18,30 +19,6 @@ pub struct Chip8 {
     pub keyboard: [u8; 16],
 }
 
-#[derive(Copy, Clone)]
-struct Instruction(u16);
-
-impl Instruction {
-    fn nnn(self) -> u16 {
-        self.0 & 0x0FFF
-    }
-
-    fn kk(self) -> u8 {
-        (self.0 & 0xFF) as u8
-    }
-
-    fn n(self) -> u8 {
-        (self.0 & 0xF) as u8
-    }
-
-    fn x_reg(self) -> usize {
-        ((self.0 & 0x0F00) >> 8) as usize
-    }
-
-    fn y_reg(self) -> usize {
-        ((self.0 & 0x00F0) >> 4) as usize
-    }
-}
 
 impl Chip8 {
     pub fn new() -> Chip8 {
@@ -91,7 +68,7 @@ impl Chip8 {
     }
 
     fn execute_instruction(&mut self, instruction: u16) -> u16 {
-        let parsed = Instruction(instruction);
+        let instruction_word = InstructionWord(instruction);
 
         let mut next_pc = self.pc + 2;
         if instruction == 0x00E0 {
@@ -103,68 +80,68 @@ impl Chip8 {
             next_pc = retaddr;
         } else if (instruction & 0xF000) == 0x1000 {
             // 1nnn - JP addr
-            let addr = parsed.nnn();
+            let addr = instruction_word.nnn();
             next_pc = addr;
         } else if (instruction & 0xF000) == 0x2000 {
             // 2nnn - CALL addr
-            let addr = parsed.nnn();
+            let addr = instruction_word.nnn();
             self.stack.push(next_pc);
             next_pc = addr;
         } else if (instruction & 0xF000) == 0x3000 {
             // 3xkk - SE Vx, byte
-            let vx = parsed.x_reg();
-            let imm = parsed.kk();
+            let vx = instruction_word.x_reg();
+            let imm = instruction_word.kk();
             if self.gpr[vx] == imm {
                 next_pc += 2;
             }
         } else if (instruction & 0xF000) == 0x4000 {
             // 4xkk - SNE Vx, byte
-            let vx = parsed.x_reg();
-            let imm = parsed.kk();
+            let vx = instruction_word.x_reg();
+            let imm = instruction_word.kk();
             if self.gpr[vx] != imm {
                 next_pc += 2;
             }
         } else if (instruction & 0xF000) == 0x5000 {
             // 5xy0 - SE Vx, Vy
-            let vx = parsed.x_reg();
-            let vy = parsed.y_reg();
+            let vx = instruction_word.x_reg();
+            let vy = instruction_word.y_reg();
             if self.gpr[vx] == self.gpr[vy] {
                 next_pc += 2;
             }
         } else if (instruction & 0xF000) == 0x6000 {
             // 6xkk - LD Vx, byte
-            let vx = parsed.x_reg();
-            let imm = parsed.kk();
+            let vx = instruction_word.x_reg();
+            let imm = instruction_word.kk();
             self.gpr[vx] = imm;
         } else if (instruction & 0xF000) == 0x7000 {
             // 7xkk - ADD Vx, byte
-            let vx = parsed.x_reg();
-            let imm = parsed.kk();
+            let vx = instruction_word.x_reg();
+            let imm = instruction_word.kk();
             self.gpr[vx] = self.gpr[vx].wrapping_add(imm);
         } else if (instruction & 0xF00F) == 0x8000 {
             // 8xy0 - LD Vx, Vy
-            let vx = parsed.x_reg();
-            let vy = parsed.y_reg();
+            let vx = instruction_word.x_reg();
+            let vy = instruction_word.y_reg();
             self.gpr[vx] = self.gpr[vy];
         } else if (instruction & 0xF00F) == 0x8001 {
             // Set Vx = Vx OR Vy.
-            let vx = parsed.x_reg();
-            let vy = parsed.y_reg();
+            let vx = instruction_word.x_reg();
+            let vy = instruction_word.y_reg();
             self.gpr[vx] = self.gpr[vx] | self.gpr[vy];
         } else if (instruction & 0xF00F) == 0x8002 {
             // 8xy2 - AND Vx, Vy
-            let vx = parsed.x_reg();
-            let vy = parsed.y_reg();
+            let vx = instruction_word.x_reg();
+            let vy = instruction_word.y_reg();
             self.gpr[vx] = self.gpr[vx] & self.gpr[vy];
         } else if (instruction & 0xF00F) == 0x8003 {
             // 8xy3 - XOR Vx, Vy
-            let vx = parsed.x_reg();
-            let vy = parsed.y_reg();
+            let vx = instruction_word.x_reg();
+            let vy = instruction_word.y_reg();
             self.gpr[vx] = self.gpr[vx] ^ self.gpr[vy];
         } else if (instruction & 0xF00F) == 0x8004 {
             // 8xy4 - ADD Vx, Vy
-            let vx = parsed.x_reg();
-            let vy = parsed.y_reg();
+            let vx = instruction_word.x_reg();
+            let vy = instruction_word.y_reg();
             let (v, overflow) = self.gpr[vx].overflowing_add(self.gpr[vy]);
             self.gpr[vx] = v;
             self.gpr[VF] = if overflow {
@@ -174,8 +151,8 @@ impl Chip8 {
             };
         } else if (instruction & 0xF00F) == 0x8005 {
             // 8xy5 - SUB Vx, Vy
-            let vx = parsed.x_reg();
-            let vy = parsed.y_reg();
+            let vx = instruction_word.x_reg();
+            let vy = instruction_word.y_reg();
 
             let minuend = self.gpr[vx];
             let subtrahend = self.gpr[vy];
@@ -189,15 +166,15 @@ impl Chip8 {
             }
         } else if (instruction & 0xF00F) == 0x8006 {
             // 8xy6 - SHR Vx {, Vy}
-            let vx = parsed.x_reg();
-            let vy = parsed.y_reg();
+            let vx = instruction_word.x_reg();
+            let vy = instruction_word.y_reg();
 
             self.gpr[VF] = self.gpr[vy] & 0x01;
             self.gpr[vx] = self.gpr[vy] >> 1;
         } else if (instruction & 0xF00F) == 0x8007 {
             // 8xy7 - SUBN Vx, Vy
-            let vx = parsed.x_reg();
-            let vy = parsed.y_reg();
+            let vx = instruction_word.x_reg();
+            let vy = instruction_word.y_reg();
 
             let minuend = self.gpr[vx as usize];
             let subtrahend = self.gpr[vy as usize];
@@ -212,36 +189,36 @@ impl Chip8 {
             };
         } else if (instruction & 0xF00F) == 0x800E {
             // 8xyE - SHL Vx {, Vy}
-            let vx = parsed.x_reg();
-            let vy = parsed.y_reg();
+            let vx = instruction_word.x_reg();
+            let vy = instruction_word.y_reg();
 
             self.gpr[VF] = self.gpr[vy] >> 7;
             self.gpr[vx] = self.gpr[vy] << 1;
         } else if (instruction & 0xF000) == 0x9000 {
             // 9xy0 - SNE Vx, Vy
-            let vx = parsed.x_reg();
-            let vy = parsed.y_reg();
+            let vx = instruction_word.x_reg();
+            let vy = instruction_word.y_reg();
             if self.gpr[vx] != self.gpr[vy] {
                 next_pc += 2;
             }
         } else if (instruction & 0xF000) == 0xA000 {
             // Annn - LD I, addr
-            let addr = parsed.nnn();
+            let addr = instruction_word.nnn();
             self.i = addr;
         } else if (instruction & 0xF000) == 0xB000 {
             panic!("instruction not implemented 0xBxxx");
         } else if (instruction & 0xF000) == 0xC000 {
             // Cxkk - RND Vx, byte
-            let vx = parsed.x_reg();
-            let imm = parsed.kk();
+            let vx = instruction_word.x_reg();
+            let imm = instruction_word.kk();
             let random_byte = rand::thread_rng().gen::<u8>();
             self.gpr[vx] = random_byte & imm;
         } else if (instruction & 0xF000) == 0xD000 {
             // Dxyn - DRW Vx, Vy, nibble
-            let x = self.gpr[parsed.x_reg()] as usize;
-            let y = self.gpr[parsed.y_reg()] as usize;
+            let x = self.gpr[instruction_word.x_reg()] as usize;
+            let y = self.gpr[instruction_word.y_reg()] as usize;
             let from = self.i as usize;
-            let to = from + (parsed.n() as usize);
+            let to = from + (instruction_word.n() as usize);
 
             self.gpr[VF] = if self.display.draw(x, y, &self.memory[from..to]) {
                 1
@@ -250,45 +227,45 @@ impl Chip8 {
             };
         } else if (instruction & 0xF0FF) == 0xE09E {
             // Ex9E - SKP Vx
-            let x = self.gpr[parsed.x_reg()] as usize;
+            let x = self.gpr[instruction_word.x_reg()] as usize;
             if self.keyboard[x] == 1 {
                 next_pc += 2;
             }
         } else if (instruction & 0xF0FF) == 0xE0A1 {
             // ExA1 - SKNP Vx
-            let x = self.gpr[parsed.x_reg()] as usize;
+            let x = self.gpr[instruction_word.x_reg()] as usize;
             if self.keyboard[x] != 1 {
                 next_pc += 2;
             }
         } else if (instruction & 0xF0FF) == 0xF007 {
             // Fx07 - LD Vx, DT
-            let vx = parsed.x_reg();
+            let vx = instruction_word.x_reg();
             self.gpr[vx] = self.dt.get();
         } else if (instruction & 0xF0FF) == 0xF00A {
             // Fx0A - LD Vx, K
-            // let vx = parsed.x_reg();
+            // let vx = instruction_word.x_reg();
             // self.gpr[vx] = 0; // TODO: Wait for actual keyboard input.
             panic!("instruction not implemented 0xFxxA");
         } else if (instruction & 0xF0FF) == 0xF015 {
             // Fx15 - LD DT, Vx
-            let vx = parsed.x_reg();
+            let vx = instruction_word.x_reg();
             self.dt.set(self.gpr[vx]);
         } else if (instruction & 0xF0FF) == 0xF018 {
             // Fx18 - LD ST, Vx
-            let vx = parsed.x_reg();
+            let vx = instruction_word.x_reg();
             self.st.set(self.gpr[vx]);
         } else if (instruction & 0xF0FF) == 0xF01E {
             // Fx1E - ADD I, Vx
-            let vx = parsed.x_reg();
+            let vx = instruction_word.x_reg();
             self.i = self.i.wrapping_add(self.gpr[vx] as u16);
         } else if (instruction & 0xF0FF) == 0xF029 {
             // Fx29 - LD F, Vx
-            let vx = parsed.x_reg();
+            let vx = instruction_word.x_reg();
             let v = self.gpr[vx];
             self.i = FONT_MEMORY_OFFSET + v as u16 * 5;
         } else if (instruction & 0xF0FF) == 0xF033 {
             // Fx33 - LD B, Vx
-            let vx = parsed.x_reg();
+            let vx = instruction_word.x_reg();
             let v = self.gpr[vx];
             let i = self.i as usize;
 
@@ -297,7 +274,7 @@ impl Chip8 {
             self.memory[i + 2] = (v % 100) % 10;
         } else if (instruction & 0xF0FF) == 0xF055 {
             // Fx55 - LD [I], Vx
-            let vx = parsed.x_reg();
+            let vx = instruction_word.x_reg();
             let i = self.i as usize;
             for offset in 0..(vx + 1) {
                 self.memory[i + offset] = self.gpr[offset];
@@ -305,7 +282,7 @@ impl Chip8 {
             self.i += vx as u16 + 1;
         } else if (instruction & 0xF0FF) == 0xF065 {
             // Fx65 - LD Vx, [I]
-            let vx = parsed.x_reg();
+            let vx = instruction_word.x_reg();
             let i = self.i as usize;
             for offset in 0..(vx + 1) {
                 self.gpr[offset] = self.memory[i + offset];

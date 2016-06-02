@@ -23,10 +23,20 @@ pub fn compile(source: &str) -> Box<[u8]> {
     unimplemented!();
 }
 
+fn stmts<I>(input: State<I>) -> ParseResult<Vec<Statement>, I>
+    where I: Stream<Item = char>
+{
+    use combine::{many, eof};
+
+    let stmt_parser = parser(stmt);
+
+    many(stmt_parser).parse_state(input)
+}
+
 fn stmt<I>(input: State<I>) -> ParseResult<Statement, I>
     where I: Stream<Item = char>
 {
-    use combine::spaces;
+    use combine::{spaces, optional, newline};
 
     let label_parser = parser(label);
     let instruction_parser = spaces().with(parser(instruction));
@@ -48,16 +58,17 @@ fn label<I>(input: State<I>) -> ParseResult<Statement, I>
 fn instruction<I>(input: State<I>) -> ParseResult<Statement, I>
     where I: Stream<Item = char>
 {
-    use combine::{many1, letter, char, spaces, sep_by, parser};
+    use combine::{many, many1, letter, char, spaces, sep_by, parser, optional, newline, between};
 
-    let mnemonic = many1(letter());
+    let mnemonic = many1(letter()).message("mnemonic expected");
 
-    let lex_char = |c| char(c).skip(spaces());
+    let lex_char = |c| between(spaces(), spaces(), char(c));
     let operands = sep_by(parser(operand::<I>), lex_char(','));
+     
+    let opt_operands = optional(spaces()).with(optional(operands));
 
-    mnemonic.skip(spaces())
-        .and(operands)
-        .map(|x| Statement::Instruction(x.0, x.1))
+    mnemonic.and(opt_operands)
+        .map(|x| Statement::Instruction(x.0, x.1.unwrap_or_default()))
         .parse_state(input)
 }
 
@@ -78,14 +89,29 @@ fn operand<I>(input: State<I>) -> ParseResult<Operand, I>
     literal.or(register).parse_state(input)
 }
 
-
-
 #[test]
 fn compile_simple_instruction() {
     let compiled: Box<[u8]> = compile("CALL 228");
     let expected: Box<[u8]> = vec![0x22, 0x28].into_boxed_slice();
 
     assert_eq!(compiled, expected);
+}
+
+#[test]
+fn test_stmts_empty() {
+    let result = parser(stmts).parse("\n\n");
+    let expected = vec![];
+    assert_eq!(result, Ok((expected, "")));
+}
+
+#[test]
+fn test_stmts_with_new_lines() {
+    let result = parser(stmts).parse("start:\nCLS\nhello: CALL 520\n");
+    let expected = vec![Statement::Label("start".to_string()),
+                        Statement::Instruction("CLS".to_string(), vec![]),
+                        Statement::Label("hello".to_string()),
+                        Statement::Instruction("CALL".to_string(), vec![Operand::Literal(0x208)])];
+    assert_eq!(result, Ok((expected, "")));
 }
 
 #[test]
@@ -98,6 +124,20 @@ fn test_stmt_consume_label() {
 #[test]
 fn test_stmt_leading_spaces() {
     let result = parser(stmt).parse(" CLS");
+    let expected = Statement::Instruction("CLS".to_string(), vec![]);
+    assert_eq!(result, Ok((expected, "")));
+}
+
+#[test]
+fn test_stmt_consume_newline() {
+    let result = parser(stmt).parse("CLS\n");
+    let expected = Statement::Instruction("CLS".to_string(), vec![]);
+    assert_eq!(result, Ok((expected, "")));
+}
+
+#[test]
+fn test_stmt_consume_newline_with_spaces() {
+    let result = parser(stmt).parse("CLS  \n");
     let expected = Statement::Instruction("CLS".to_string(), vec![]);
     assert_eq!(result, Ok((expected, "")));
 }
@@ -117,6 +157,13 @@ fn test_instruction_with_operand() {
 }
 
 #[test]
+fn test_instruction_with_operand_tab_spaced() {
+    let result = parser(instruction).parse("SYS\t228");
+    let expected = Statement::Instruction("SYS".to_string(), vec![Operand::Literal(228)]);
+    assert_eq!(result, Ok((expected, "")));
+}
+
+#[test]
 fn test_instruction_with_two_operands() {
     let result = parser(instruction).parse("SE Vf, 30");
     let expected = Statement::Instruction("SE".to_string(),
@@ -125,8 +172,18 @@ fn test_instruction_with_two_operands() {
 }
 
 #[test]
-fn test_instruction_with_spaced_operands() {
+fn test_instruction_with_spaced_operands_after_comma() {
     let result = parser(instruction).parse("DRW     V0,\tVa,15");
+    let expected = Statement::Instruction("DRW".to_string(),
+                                          vec![Operand::Register(Reg::V0),
+                                               Operand::Register(Reg::Va),
+                                               Operand::Literal(15)]);
+    assert_eq!(result, Ok((expected, "")))
+}
+
+#[test]
+fn test_instruction_with_spaced_operands_before_comma() {
+    let result = parser(instruction).parse("DRW     V0 ,Va\t,15");
     let expected = Statement::Instruction("DRW".to_string(),
                                           vec![Operand::Register(Reg::V0),
                                                Operand::Register(Reg::Va),

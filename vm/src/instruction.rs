@@ -81,7 +81,15 @@ impl Reg {
     
     pub fn index(self) -> u8 {
         self as u8
-    } 
+    }
+    
+    fn encode_as_vx(self) -> u16 {
+        (self as u16) << 8
+    }
+    
+    fn encode_as_vy(self) -> u16 {
+        (self as u16) << 4
+    }
 }
 
 #[derive(Debug, PartialEq)]
@@ -287,7 +295,12 @@ impl Instruction {
         
         let encoding: u16 = match self {
             ClearScreen => 0x00E0,
+            Ret => 0x00EE,
             Call(addr) => 0x2000 | addr.0,
+            SkipEqReg { vx, vy, inv } => {
+                let opcode = if !inv { 0x5000 } else { 0x9000 };
+                opcode | vx.encode_as_vx() | vy.encode_as_vy()
+            }
             _ => unimplemented!()  
         };
         InstructionWord(encoding)

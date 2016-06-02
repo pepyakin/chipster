@@ -3,13 +3,39 @@ use combine::primitives::{State, Stream, ParseResult};
 
 // TODO: Define own?
 use vm::instruction::Reg;
-use vm::instruction::Addr;
+
+#[derive(Debug, Copy, Clone, PartialEq)]
+pub struct LiteralValue {
+    raw: u16,
+}
+
+impl LiteralValue {
+    pub fn new(raw: u16) -> LiteralValue {
+        LiteralValue { raw: raw }
+    }
+
+    pub fn as_u8(&self) -> u8 {
+        assert!((self.raw & 0xFF) == self.raw);
+        self.raw as u8
+    }
+
+    pub fn as_u16(&self) -> u16 {
+        assert!((self.raw & 0xFFFF) == self.raw);
+        self.raw as u16
+    }
+}
 
 #[derive(Debug, PartialEq)]
 pub enum Operand {
-    Literal(u16),
+    Literal(LiteralValue),
     Label(String),
     Register(Reg),
+}
+
+impl Operand {
+    pub fn new_literal(value: u16) -> Operand {
+        Operand::Literal(LiteralValue::new(value))
+    }
 }
 
 #[derive(Debug, PartialEq)]
@@ -88,7 +114,9 @@ fn operand<I>(input: State<I>) -> ParseResult<Operand, I>
 {
     use combine::{many1, digit, token, hex_digit};
 
-    let literal = many1(digit()).and_then(|s: String| s.parse::<u16>()).map(Operand::Literal);
+    let literal = many1(digit())
+        .and_then(|s: String| s.parse::<u16>())
+        .map(|x| Operand::new_literal(x));
     let register = token('V')
         .with(hex_digit())
         .map(|x: char| {
@@ -127,7 +155,8 @@ fn test_stmts_label_insn_nl() {
 fn test_stmts_label_insn_operands_nl() {
     let result = parser(stmts).parse("start: CALL 520\n");
     let expected = vec![Statement::Label("start".to_string()),
-                        Statement::Instruction("CALL".to_string(), vec![Operand::Literal(0x208)])];
+                        Statement::Instruction("CALL".to_string(),
+                                               vec![Operand::new_literal(0x208)])];
     assert_eq!(result, Ok((expected, "")));
 }
 
@@ -137,7 +166,8 @@ fn test_stmts_with_new_lines() {
     let expected = vec![Statement::Label("start".to_string()),
                         Statement::Instruction("CLS".to_string(), vec![]),
                         Statement::Label("hello".to_string()),
-                        Statement::Instruction("CALL".to_string(), vec![Operand::Literal(0x208)])];
+                        Statement::Instruction("CALL".to_string(),
+                                               vec![Operand::new_literal(0x208)])];
     assert_eq!(result, Ok((expected, "")));
 }
 
@@ -193,14 +223,14 @@ fn test_instruction_jumping_case() {
 #[test]
 fn test_instruction_with_operand() {
     let result = parser(instruction).parse("SYS 228");
-    let expected = Statement::Instruction("SYS".to_string(), vec![Operand::Literal(228)]);
+    let expected = Statement::Instruction("SYS".to_string(), vec![Operand::new_literal(228)]);
     assert_eq!(result, Ok((expected, "")));
 }
 
 #[test]
 fn test_instruction_with_operand_tab_spaced() {
     let result = parser(instruction).parse("SYS\t228");
-    let expected = Statement::Instruction("SYS".to_string(), vec![Operand::Literal(228)]);
+    let expected = Statement::Instruction("SYS".to_string(), vec![Operand::new_literal(228)]);
     assert_eq!(result, Ok((expected, "")));
 }
 
@@ -208,7 +238,8 @@ fn test_instruction_with_operand_tab_spaced() {
 fn test_instruction_with_two_operands() {
     let result = parser(instruction).parse("SE Vf, 30");
     let expected = Statement::Instruction("SE".to_string(),
-                                          vec![Operand::Register(Reg::Vf), Operand::Literal(30)]);
+                                          vec![Operand::Register(Reg::Vf),
+                                               Operand::new_literal(30)]);
     assert_eq!(result, Ok((expected, "")));
 }
 
@@ -218,7 +249,7 @@ fn test_instruction_with_spaced_operands_after_comma() {
     let expected = Statement::Instruction("DRW".to_string(),
                                           vec![Operand::Register(Reg::V0),
                                                Operand::Register(Reg::Va),
-                                               Operand::Literal(15)]);
+                                               Operand::new_literal(15)]);
     assert_eq!(result, Ok((expected, "")))
 }
 
@@ -228,14 +259,14 @@ fn test_instruction_with_spaced_operands_before_comma() {
     let expected = Statement::Instruction("DRW".to_string(),
                                           vec![Operand::Register(Reg::V0),
                                                Operand::Register(Reg::Va),
-                                               Operand::Literal(15)]);
+                                               Operand::new_literal(15)]);
     assert_eq!(result, Ok((expected, "")))
 }
 
 #[test]
 fn test_operand_literal() {
     let result = parser(operand).parse("1312");
-    let expected = Operand::Literal(1312);
+    let expected = Operand::new_literal(1312);
 
     assert_eq!(result, Ok((expected, "")));
 }

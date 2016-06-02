@@ -11,9 +11,8 @@ use parse::Statement;
 
 pub fn compile(source: &str) -> Box<[u8]> {
     let statements = parse::parse_source(source);
-    
-    let mut instructions: Vec<vm::instruction::Instruction> = vec![];
 
+    let mut instructions: Vec<vm::instruction::Instruction> = vec![];
     for statement in statements {
         match statement {
             Statement::Instruction(mnemonic, operands) => {
@@ -34,17 +33,17 @@ pub fn compile(source: &str) -> Box<[u8]> {
             _ => {}
         }
     }
-   
+
     instructions.into_iter()
         .flat_map::<Vec<u8>, _>(|instruction| {
             fn unpack_word(word: u16) -> Vec<u8> {
                 // TODO: byteorder
                 let first_byte = ((word >> 8) & 0xFF) as u8;
                 let second_byte = (word & 0xFF) as u8;
-                
+
                 vec![first_byte, second_byte]
             }
-            
+
             let instruction_word = instruction.encode();
             unpack_word(instruction_word.0)
         })

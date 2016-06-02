@@ -19,7 +19,6 @@ pub struct Chip8 {
     pub keyboard: [u8; 16],
 }
 
-
 impl Chip8 {
     pub fn new() -> Chip8 {
         let mut chip8 = Chip8 {
@@ -77,7 +76,7 @@ impl Chip8 {
                 let retaddr = self.stack.pop();
                 next_pc = retaddr;
             },
-            Sys(addr) => {
+            Sys(_addr) => {
                 unimplemented!();
             },
             Jump(addr) => {
@@ -88,9 +87,9 @@ impl Chip8 {
                 next_pc = addr.0;
             },
             SkipEqImm { 
-                vx: vx,
-                imm: imm,
-                inv: inv
+                vx,
+                imm,
+                inv
             } => {
                 if !inv {
                     if self.read_gpr(vx) == imm.0 {
@@ -103,9 +102,9 @@ impl Chip8 {
                 }
             },
             SkipEqReg {
-                vx: vx,
-                vy: vy,
-                inv: inv
+                vx,
+                vy,
+                inv
             } => {
                 if !inv {
                     if self.read_gpr(vx) == self.read_gpr(vy) {
@@ -118,22 +117,22 @@ impl Chip8 {
                 }
             },
             PutImm {
-                vx: vx,
-                imm: imm
+                vx,
+                imm
             } => {
                 self.write_gpr(vx, imm.0);
             },
             AddImm {
-                vx: vx,
-                imm: imm
+                vx,
+                imm
             } => {
                 let x = self.read_gpr(vx);
                 self.write_gpr(vx, x.wrapping_add(imm.0));
             },
             Apply {
-                vx: vx,
-                vy: vy,
-                f: f
+                vx,
+                vy,
+                f
             } => {
                 let x = self.read_gpr(vx);
                 let y = self.read_gpr(vy);
@@ -179,21 +178,21 @@ impl Chip8 {
             SetI(addr) => {
                 self.i = addr.0;
             },
-            JumpPlusV0(addr) => {
+            JumpPlusV0(_addr) => {
                 panic!("instruction not implemented 0xBxxx");
             },
             Randomize { 
-                vx: vx, 
-                imm: imm 
+                vx, 
+                imm 
             } => {
                 let random_byte = rand::thread_rng().gen::<u8>();
                 self.write_gpr(vx, random_byte & imm.0);
             },
             
             Draw {
-                vx: vx,
-                vy: vy,
-                n: n
+                vx,
+                vy,
+                n
             } => {
                 let x = self.read_gpr(vx) as usize;
                 let y = self.read_gpr(vy) as usize;
@@ -208,8 +207,8 @@ impl Chip8 {
                 self.write_gpr(Reg::Vf, if collision_bit { 1 } else { 0 });
             },
             SkipPressed {
-                vx: vx,
-                inv: inv
+                vx,
+                inv
             } => {
                 let x = self.read_gpr(vx) as usize;
                 if !inv {
@@ -226,7 +225,7 @@ impl Chip8 {
                 let dt = self.dt.get();
                 self.write_gpr(vx, dt);
             },
-            WaitKey(vx) => {
+            WaitKey(_vx) => {
                 panic!("instruction not implemented 0xFxxA");
             },
             SetDT(vx) => {
@@ -322,5 +321,3 @@ const FONT_SPRITES: [u8; 80] = [
 	0xF0, 0x80, 0xF0, 0x80, 0xF0, // E
 	0xF0, 0x80, 0xF0, 0x80, 0x80, // F
 ];
-
-pub const VF: usize = 0x0F;

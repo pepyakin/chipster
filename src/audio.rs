@@ -16,7 +16,7 @@ impl BeeperFactory {
         BeeperFactory { portaudio: p }
     }
 
-    pub fn create_beeper<'a>(&'a mut self) -> Beeper<'a> {
+    pub fn create_beeper(&mut self) -> Beeper {
         Beeper::new(&mut self.portaudio)
     }
 }
@@ -34,8 +34,8 @@ impl<'a> Beeper<'a> {
             .unwrap();
 
         let mut sine = [0.0; TABLE_SIZE];
-        for i in 0..TABLE_SIZE {
-            sine[i] = (i as f64 / TABLE_SIZE as f64 * PI * 2.0).sin() as f32;
+        for (i, item) in sine.iter_mut().enumerate().take(TABLE_SIZE) {
+            *item = (i as f64 / TABLE_SIZE as f64 * PI * 2.0).sin() as f32;
         }
         let mut left_phase = 0;
         let mut right_phase = 0;

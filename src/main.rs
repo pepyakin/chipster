@@ -30,7 +30,8 @@ impl CommandArgs {
                 .short("c")
                 .long("cycles-per-sec")
                 .value_name("cycles_per_second")
-                .help("How many Chip8 cycles should be executed per second. Values between 500-1000 should be fine.")
+                .help("How many Chip8 cycles should be executed per second. Values between \
+                       500-1000 should be fine.")
                 .takes_value(true))
             .get_matches();
 
@@ -83,7 +84,7 @@ fn read_rom<P: AsRef<Path>>(path: P) -> Result<Box<[u8]>, io::Error> {
     Ok(bin_buffer.into_boxed_slice())
 }
 
-fn prepare_chip8_vm(rom_file_name: &String) -> Chip8 {
+fn prepare_chip8_vm(rom_file_name: &str) -> Chip8 {
     let rom_data = read_rom(rom_file_name).expect("failed to read rom");
     Chip8::with_bin(rom_data)
 }
@@ -198,7 +199,7 @@ fn map_keycode(k: Button) -> Option<usize> {
     // +---+---+---+---+
 
     if let Button::Keyboard(k) = k {
-        return match k {
+        match k {
             Key::D1 => Some(0x1),
             Key::D2 => Some(0x2),
             Key::D3 => Some(0x3),
@@ -219,7 +220,8 @@ fn map_keycode(k: Button) -> Option<usize> {
             Key::C => Some(0xB),
             Key::V => Some(0xF),
             _ => None,
-        };
+        }
+    } else {
+        None
     }
-    return None;
 }

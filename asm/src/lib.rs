@@ -7,9 +7,6 @@ use combine::{Parser, ParserExt, parser};
 use combine::primitives::{State, Stream, ParseResult};
 
 #[derive(Debug, PartialEq)]
-struct Label(String);
-
-#[derive(Debug, PartialEq)]
 enum Operand {
     Literal(u16),
     Label(String),
@@ -29,16 +26,21 @@ pub fn compile(source: &str) -> Box<[u8]> {
 fn stmt<I>(input: State<I>) -> ParseResult<Statement, I>
     where I: Stream<Item = char>
 {
-    unimplemented!();
+    use combine::spaces;
+
+    let label_parser = parser(label);
+    let instruction_parser = spaces().with(parser(instruction));
+
+    label_parser.or(instruction_parser).parse_state(input)
 }
 
-fn label<I>(input: State<I>) -> ParseResult<Label, I>
+fn label<I>(input: State<I>) -> ParseResult<Statement, I>
     where I: Stream<Item = char>
 {
     use combine::{many1, letter, token};
-    
+
     let ident = many1(letter().or(token('_')));
-    let label = ident.map(Label);
+    let label = ident.map(Statement::Label);
 
     label.skip(token(':')).parse_state(input)
 }
@@ -47,7 +49,7 @@ fn instruction<I>(input: State<I>) -> ParseResult<Statement, I>
     where I: Stream<Item = char>
 {
     use combine::{many1, letter, char, spaces, sep_by, parser};
-    
+
     let mnemonic = many1(letter());
 
     let lex_char = |c| char(c).skip(spaces());
@@ -63,7 +65,7 @@ fn operand<I>(input: State<I>) -> ParseResult<Operand, I>
     where I: Stream<Item = char>
 {
     use combine::{many1, digit, token, hex_digit};
-    
+
     let literal = many1(digit()).and_then(|s: String| s.parse::<u16>()).map(Operand::Literal);
     let register = token('V')
         .with(hex_digit())
@@ -74,6 +76,30 @@ fn operand<I>(input: State<I>) -> ParseResult<Operand, I>
         .map(Operand::Register);
 
     literal.or(register).parse_state(input)
+}
+
+
+
+#[test]
+fn compile_simple_instruction() {
+    let compiled: Box<[u8]> = compile("CALL 228");
+    let expected: Box<[u8]> = vec![0x22, 0x28].into_boxed_slice();
+
+    assert_eq!(compiled, expected);
+}
+
+#[test]
+fn test_stmt_consume_label() {
+    let result = parser(stmt).parse("hello: CLS");
+    let expected = Statement::Label("hello".to_string());
+    assert_eq!(result, Ok((expected, " CLS")));
+}
+
+#[test]
+fn test_stmt_leading_spaces() {
+    let result = parser(stmt).parse(" CLS");
+    let expected = Statement::Instruction("CLS".to_string(), vec![]);
+    assert_eq!(result, Ok((expected, "")));
 }
 
 #[test]
@@ -119,25 +145,18 @@ fn test_operand_literal() {
 #[test]
 fn test_label_only_letters() {
     let result = parser(label).parse("hello: CLS");
-    assert_eq!(result, Ok((Label("hello".to_string()), " CLS")));
+    assert_eq!(result, Ok((Statement::Label("hello".to_string()), " CLS")));
 }
 
 #[test]
 fn test_label_with_underscore() {
     let result = parser(label).parse("hello_world: CLS");
-    assert_eq!(result, Ok((Label("hello_world".to_string()), " CLS")));
+    assert_eq!(result,
+               Ok((Statement::Label("hello_world".to_string()), " CLS")));
 }
 
 #[test]
 fn test_label_with_uppercase() {
     let result = parser(label).parse("Label:");
-    assert_eq!(result, Ok((Label("Label".to_string()), "")));
-}
-
-#[test]
-fn compile_simple_instruction() {
-    let compiled: Box<[u8]> = compile("CALL 228");
-    let expected: Box<[u8]> = vec![0x22, 0x28].into_boxed_slice();
-
-    assert_eq!(compiled, expected);
+    assert_eq!(result, Ok((Statement::Label("Label".to_string()), "")));
 }

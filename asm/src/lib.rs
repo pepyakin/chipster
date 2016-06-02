@@ -26,12 +26,22 @@ pub fn compile(source: &str) -> Box<[u8]> {
 fn stmts<I>(input: State<I>) -> ParseResult<Vec<Statement>, I>
     where I: Stream<Item = char>
 {
-    use combine::{many, eof};
+    use combine::{many, eof, optional, try, newline, spaces, skip_many, choice};
 
-    let stmt_parser = parser(stmt);
+    let stmt_parser = try(parser(stmt)).map::<_, Option<Statement>>(Some);
+    let empty_line = try(newline::<I>()).map::<_, Option<Statement>>(|_| None);
 
+    let stmt_or_new_line = stmt_parser.or(empty_line);
+    let mut opt_stms = many(stmt_or_new_line).map::<_, Vec<Statement>>(|x| flatten_vec(x));
 
-    many(stmt_parser).parse_state(input)
+    opt_stms.parse_state(input)
+}
+
+fn flatten_vec<T>(v: Vec<Option<T>>) -> Vec<T>
+    where T: std::fmt::Debug
+{
+    println!("{:?}", v);
+    v.into_iter().flat_map(|x| x.map(|y| vec![y]).unwrap_or_default()).collect()
 }
 
 fn stmt<I>(input: State<I>) -> ParseResult<Statement, I>
@@ -59,14 +69,16 @@ fn label<I>(input: State<I>) -> ParseResult<Statement, I>
 fn instruction<I>(input: State<I>) -> ParseResult<Statement, I>
     where I: Stream<Item = char>
 {
-    use combine::{many, many1, letter, char, spaces, sep_by, parser, optional, newline, between};
+    use combine::{many, many1, letter, char, spaces, sep_by, parser, optional, newline, between,
+                  try};
 
     let mnemonic = many1(letter()).message("mnemonic expected");
 
-    let lex_char = |c| between(spaces(), spaces(), char(c));
-    let operands = sep_by(parser(operand::<I>), lex_char(','));
-     
-    let opt_operands = optional(spaces()).with(optional(operands));
+    let lex_char = |c| char(c);
+    let operands = sep_by(between(spaces(), spaces(), parser(operand::<I>)),
+                          lex_char(','));
+
+    let opt_operands = optional(between(spaces(), spaces(), operands));
 
     mnemonic.and(opt_operands)
         .map(|x| Statement::Instruction(x.0, x.1.unwrap_or_default()))
@@ -106,8 +118,32 @@ fn test_stmts_empty() {
 }
 
 #[test]
+fn test_stmts_with_nl() {
+    let result = parser(stmts).parse("start:\nCLS\n");
+    let expected = vec![Statement::Label("start".to_string()),
+                        Statement::Instruction("CLS".to_string(), vec![])];
+    assert_eq!(result, Ok((expected, "")));
+}
+
+#[test]
+fn test_stmts_label_insn_nl() {
+    let result = parser(stmts).parse("start: CLS\n");
+    let expected = vec![Statement::Label("start".to_string()),
+                        Statement::Instruction("CLS".to_string(), vec![])];
+    assert_eq!(result, Ok((expected, "")));
+}
+
+#[test]
+fn test_stmts_label_insn_operands_nl() {
+    let result = parser(stmts).parse("start: CALL 520\n");
+    let expected = vec![Statement::Label("start".to_string()),
+                        Statement::Instruction("CALL".to_string(), vec![Operand::Literal(0x208)])];
+    assert_eq!(result, Ok((expected, "")));
+}
+
+#[test]
 fn test_stmts_with_new_lines() {
-    let result = parser(stmts).parse("start:\nCLS\nhello: CALL 520\n");
+    let result = parser(stmts).parse("start:\nCLS\nhello: CALL 520");
     let expected = vec![Statement::Label("start".to_string()),
                         Statement::Instruction("CLS".to_string(), vec![]),
                         Statement::Label("hello".to_string()),
@@ -131,7 +167,7 @@ fn test_stmt_leading_spaces() {
 
 #[test]
 fn test_stmt_consume_newline() {
-    let result = parser(stmt).parse("CLS\n");
+    let result = parser(stmt).parse(" CLS\n");
     let expected = Statement::Instruction("CLS".to_string(), vec![]);
     assert_eq!(result, Ok((expected, "")));
 }

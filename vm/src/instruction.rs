@@ -42,17 +42,17 @@ impl InstructionWord {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub struct Addr(pub u16); // TODO: Only & 0x0FFF
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub struct Imm(pub u8);
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub struct Imm4(pub u8); // TODO: Only & 0x0F
 
 enum_from_primitive! {
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, PartialEq)]
 pub enum Reg {
     V0 = 0x0,
     V1 = 0x1,
@@ -84,7 +84,7 @@ impl Reg {
     } 
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum Fun {
     /// 8xy0 - LD Vx, Vy
     Id,
@@ -114,7 +114,7 @@ pub enum Fun {
     ShiftLeft
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum Instruction {
     /// 00E0 - CLS
     ClearScreen,

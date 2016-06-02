@@ -26,7 +26,7 @@ pub fn compile(source: &str) -> Box<[u8]> {
 fn stmts<I>(input: State<I>) -> ParseResult<Vec<Statement>, I>
     where I: Stream<Item = char>
 {
-    use combine::{many, eof, optional, try, newline, spaces, skip_many, choice};
+    use combine::{many, try, newline};
 
     let stmt_parser = try(parser(stmt)).map::<_, Option<Statement>>(Some);
     let empty_line = try(newline::<I>()).map::<_, Option<Statement>>(|_| None);
@@ -47,7 +47,7 @@ fn flatten_vec<T>(v: Vec<Option<T>>) -> Vec<T>
 fn stmt<I>(input: State<I>) -> ParseResult<Statement, I>
     where I: Stream<Item = char>
 {
-    use combine::{spaces, optional, newline, try};
+    use combine::{spaces, try};
 
     let label_parser = parser(label);
     let instruction_parser = spaces().with(parser(instruction));
@@ -69,10 +69,10 @@ fn label<I>(input: State<I>) -> ParseResult<Statement, I>
 fn instruction<I>(input: State<I>) -> ParseResult<Statement, I>
     where I: Stream<Item = char>
 {
-    use combine::{many, many1, letter, char, spaces, sep_by, parser, optional, newline, between,
-                  try};
+    use std::ascii::AsciiExt;
+    use combine::{many1, letter, char, spaces, sep_by, parser, optional, between};
 
-    let mnemonic = many1(letter()).message("mnemonic expected");
+    let mnemonic = many1(letter()).map(|x: String| x.to_ascii_uppercase()).message("mnemonic expected");
 
     let lex_char = |c| char(c);
     let operands = sep_by(between(spaces(), spaces(), parser(operand::<I>)),
@@ -182,6 +182,13 @@ fn test_stmt_consume_newline_with_spaces() {
 #[test]
 fn test_instruction_no_operands() {
     let result = parser(instruction).parse("CLS");
+    let expected = Statement::Instruction("CLS".to_string(), vec![]);
+    assert_eq!(result, Ok((expected, "")));
+}
+
+#[test]
+fn test_instruction_jumping_case() {
+    let result = parser(instruction).parse("cLs");
     let expected = Statement::Instruction("CLS".to_string(), vec![]);
     assert_eq!(result, Ok((expected, "")));
 }

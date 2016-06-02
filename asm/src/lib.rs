@@ -30,18 +30,19 @@ fn stmts<I>(input: State<I>) -> ParseResult<Vec<Statement>, I>
 
     let stmt_parser = parser(stmt);
 
+
     many(stmt_parser).parse_state(input)
 }
 
 fn stmt<I>(input: State<I>) -> ParseResult<Statement, I>
     where I: Stream<Item = char>
 {
-    use combine::{spaces, optional, newline};
+    use combine::{spaces, optional, newline, try};
 
     let label_parser = parser(label);
     let instruction_parser = spaces().with(parser(instruction));
 
-    label_parser.or(instruction_parser).parse_state(input)
+    try(label_parser).or(instruction_parser).parse_state(input)
 }
 
 fn label<I>(input: State<I>) -> ParseResult<Statement, I>

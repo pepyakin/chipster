@@ -49,7 +49,7 @@ fn stmt<I>(input: State<I>) -> ParseResult<Statement, I>
 {
     use combine::{spaces, try};
 
-    let label_parser = parser(label);
+    let label_parser = spaces().with(parser(label));
     let instruction_parser = spaces().with(parser(instruction));
 
     try(label_parser).or(instruction_parser).parse_state(input)
@@ -154,6 +154,13 @@ fn test_stmts_with_new_lines() {
 #[test]
 fn test_stmt_consume_label() {
     let result = parser(stmt).parse("hello: CLS");
+    let expected = Statement::Label("hello".to_string());
+    assert_eq!(result, Ok((expected, " CLS")));
+}
+
+#[test]
+fn test_stmt_consume_label_lead_space() {
+    let result = parser(stmt).parse(" hello: CLS");
     let expected = Statement::Label("hello".to_string());
     assert_eq!(result, Ok((expected, " CLS")));
 }

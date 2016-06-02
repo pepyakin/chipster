@@ -34,16 +34,19 @@ pub fn compile(source: &str) -> Box<[u8]> {
             _ => {}
         }
     }
-
+   
     instructions.into_iter()
         .flat_map::<Vec<u8>, _>(|instruction| {
+            fn unpack_word(word: u16) -> Vec<u8> {
+                // TODO: byteorder
+                let first_byte = ((word >> 8) & 0xFF) as u8;
+                let second_byte = (word & 0xFF) as u8;
+                
+                vec![first_byte, second_byte]
+            }
+            
             let instruction_word = instruction.encode();
-
-            // TODO: byteorder
-            let first_byte = ((instruction_word.0 >> 8) & 0xFF) as u8;
-            let second_byte = (instruction_word.0 & 0xFF) as u8;
-
-            vec![first_byte, second_byte]
+            unpack_word(instruction_word.0)
         })
         .collect::<Vec<u8>>()
         .into_boxed_slice()

@@ -287,7 +287,7 @@ impl Instruction {
         
         let encoding: u16 = match self {
             ClearScreen => 0x00E0,
-            Call(addr) => { println!("addr={:?}", addr); 0x2000 | addr.0 } ,
+            Call(addr) => 0x2000 | addr.0,
             _ => unimplemented!()  
         };
         InstructionWord(encoding)

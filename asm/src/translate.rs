@@ -33,50 +33,59 @@ pub fn translate(statements: Vec<Statement>) -> Box<[u8]> {
 }
 
 fn match_instruction(mnemonic: &str, operands: Vec<Operand>) -> vm::instruction::Instruction {
+    let unsupported_operands =
+        || format!("unsupported operands {:?} for {:?}", &operands, mnemonic);
+
     match mnemonic {
         "CLS" => vm::instruction::Instruction::ClearScreen,
+        "JUMP" => {
+            match &operands[..] {
+                [Operand::Literal(lit)] => Instruction::Jump(lit.as_addr()),
+                _ => panic!(unsupported_operands()),
+            }
+        }
         "CALL" => {
             match &operands[..] {
-                [Operand::Literal(lit)] => vm::instruction::Instruction::Call(lit.as_addr()),
-                _ => panic!("unsupported operand for CALL"),
+                [Operand::Literal(lit)] => Instruction::Call(lit.as_addr()),
+                _ => panic!(unsupported_operands()),
             }
         }
         "SE" => {
             match &operands[..] {
                 [Operand::Register(vx), Operand::Literal(kk)] => {
-                    vm::instruction::Instruction::SkipEqImm {
+                    Instruction::SkipEqImm {
                         vx: vx,
                         imm: kk.as_imm(),
                         inv: false,
                     }
                 }
                 [Operand::Register(vx), Operand::Register(vy)] => {
-                    vm::instruction::Instruction::SkipEqReg {
+                    Instruction::SkipEqReg {
                         vx: vx,
                         vy: vy,
                         inv: false,
                     }
                 }
-                _ => panic!("unsupported operands {:?}", operands),
+                _ => panic!(unsupported_operands()),
             }
         }
         "SNE" => {
             match &operands[..] {
                 [Operand::Register(vx), Operand::Literal(kk)] => {
-                    vm::instruction::Instruction::SkipEqImm {
+                    Instruction::SkipEqImm {
                         vx: vx,
                         imm: kk.as_imm(),
                         inv: true,
                     }
                 }
                 [Operand::Register(vx), Operand::Register(vy)] => {
-                    vm::instruction::Instruction::SkipEqReg {
+                    Instruction::SkipEqReg {
                         vx: vx,
                         vy: vy,
                         inv: true,
                     }
                 }
-                _ => panic!("unsupported operands {:?}", operands),
+                _ => panic!(unsupported_operands()),
             }
         }
         _ => unimplemented!(),

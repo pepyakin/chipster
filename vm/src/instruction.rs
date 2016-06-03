@@ -301,6 +301,7 @@ impl Instruction {
                 let opcode = if !inv { 0x5000 } else { 0x9000 };
                 opcode | vx.encode_as_vx() | vy.encode_as_vy()
             }
+            SetI(addr) => 0xA000 | addr.0,
             _ => unimplemented!()  
         };
         InstructionWord(encoding)

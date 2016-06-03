@@ -26,3 +26,11 @@ fn compile_binary_instruction() {
 
     assert_eq!(compiled, expected);
 }
+
+#[test]
+fn compile_ld_i() {
+    let compiled: Box<[u8]> = compile("LD I, 512");
+    let expected: Box<[u8]> = vec![0xA2, 0x00].into_boxed_slice();
+
+    assert_eq!(compiled, expected);
+}

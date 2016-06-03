@@ -4,6 +4,7 @@ use super::parse::*;
 use vm::instruction::Addr;
 use vm::instruction::Imm;
 use vm::instruction::Instruction;
+use vm::instruction::Fun;
 use super::vm;
 
 impl LiteralValue {
@@ -85,6 +86,26 @@ fn match_instruction(mnemonic: &str, operands: Vec<Operand>) -> vm::instruction:
                         inv: true,
                     }
                 }
+                _ => panic!(unsupported_operands()),
+            }
+        }
+        "LD" => {
+            match &operands[..] {
+                [Operand::Register(vx), Operand::Literal(kk)] => {
+                    Instruction::PutImm {
+                        vx: vx,
+                        imm: kk.as_imm(),
+                    }
+                }
+                [Operand::Register(vx), Operand::Register(vy)] => {
+                    Instruction::Apply {
+                        vx: vx,
+                        vy: vy,
+                        f: Fun::Id,
+                    }
+                }
+                [Operand::IndexReg, Operand::Literal(kk)] => Instruction::SetI(kk.as_addr()),
+
                 _ => panic!(unsupported_operands()),
             }
         }

@@ -30,6 +30,9 @@ pub enum Operand {
     Literal(LiteralValue),
     Label(String),
     Register(Reg),
+
+    /// Like I
+    IndexReg,
 }
 
 impl Operand {
@@ -112,7 +115,7 @@ fn instruction<I>(input: State<I>) -> ParseResult<Statement, I>
 fn operand<I>(input: State<I>) -> ParseResult<Operand, I>
     where I: Stream<Item = char>
 {
-    use combine::{many1, digit, token, hex_digit};
+    use combine::{try, many1, digit, token, hex_digit};
 
     let literal = many1(digit())
         .and_then(|s: String| s.parse::<u16>())
@@ -125,7 +128,9 @@ fn operand<I>(input: State<I>) -> ParseResult<Operand, I>
         })
         .map(Operand::Register);
 
-    literal.or(register).parse_state(input)
+    let index_reg = token('I').map(|_| Operand::IndexReg);
+
+    try(literal).or(try(index_reg)).or(register).parse_state(input)
 }
 
 #[test]
@@ -267,6 +272,22 @@ fn test_instruction_with_spaced_operands_before_comma() {
 fn test_operand_literal() {
     let result = parser(operand).parse("1312");
     let expected = Operand::new_literal(1312);
+
+    assert_eq!(result, Ok((expected, "")));
+}
+
+#[test]
+fn test_operand_index_reg() {
+    let result = parser(operand).parse("I");
+    let expected = Operand::IndexReg;
+
+    assert_eq!(result, Ok((expected, "")));
+}
+
+#[test]
+fn test_operand_gpr() {
+    let result = parser(operand).parse("V9");
+    let expected = Operand::Register(Reg::V9);
 
     assert_eq!(result, Ok((expected, "")));
 }

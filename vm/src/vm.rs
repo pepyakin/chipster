@@ -67,7 +67,7 @@ impl Chip8 {
 
     fn execute_instruction(&mut self, instruction: Instruction) -> u16 {
         use instruction::Instruction::*;
-        
+
         let mut next_pc = self.pc + 2;
 
         match instruction {
@@ -75,22 +75,18 @@ impl Chip8 {
             Ret => {
                 let retaddr = self.stack.pop();
                 next_pc = retaddr;
-            },
+            }
             Sys(_addr) => {
                 unimplemented!();
-            },
+            }
             Jump(addr) => {
                 next_pc = addr.0;
-            },
+            }
             Call(addr) => {
                 self.stack.push(next_pc);
                 next_pc = addr.0;
-            },
-            SkipEqImm { 
-                vx,
-                imm,
-                inv
-            } => {
+            }
+            SkipEqImm { vx, imm, inv } => {
                 if !inv {
                     if self.read_gpr(vx) == imm.0 {
                         next_pc += 2;
@@ -100,12 +96,8 @@ impl Chip8 {
                         next_pc += 2;
                     }
                 }
-            },
-            SkipEqReg {
-                vx,
-                vy,
-                inv
-            } => {
+            }
+            SkipEqReg { vx, vy, inv } => {
                 if !inv {
                     if self.read_gpr(vx) == self.read_gpr(vy) {
                         next_pc += 2;
@@ -115,101 +107,101 @@ impl Chip8 {
                         next_pc += 2;
                     }
                 }
-            },
-            PutImm {
-                vx,
-                imm
-            } => {
+            }
+            PutImm { vx, imm } => {
                 self.write_gpr(vx, imm.0);
-            },
-            AddImm {
-                vx,
-                imm
-            } => {
+            }
+            AddImm { vx, imm } => {
                 let x = self.read_gpr(vx);
                 self.write_gpr(vx, x.wrapping_add(imm.0));
-            },
-            Apply {
-                vx,
-                vy,
-                f
-            } => {
+            }
+            Apply { vx, vy, f } => {
                 let x = self.read_gpr(vx);
                 let y = self.read_gpr(vy);
-                
+
                 match f {
                     Fun::Id => {
                         self.write_gpr(vx, y);
-                    },
+                    }
                     Fun::Or => {
                         self.write_gpr(vx, x | y);
-                    },
+                    }
                     Fun::And => {
                         self.write_gpr(vx, x & y);
-                    },
+                    }
                     Fun::Xor => {
                         self.write_gpr(vx, x ^ y);
-                    },
+                    }
                     Fun::Add => {
                         let (v, overflow) = x.overflowing_add(y);
                         self.write_gpr(vx, v);
-                        self.write_gpr(Reg::Vf, if overflow { 1 } else { 0 });
-                    },
+                        self.write_gpr(Reg::Vf,
+                                       if overflow {
+                                           1
+                                       } else {
+                                           0
+                                       });
+                    }
                     Fun::Subtract => {
                         let (v, borrow) = x.overflowing_sub(y);
                         self.write_gpr(vx, v);
-                        self.write_gpr(Reg::Vf, if borrow { 0 } else { 1 });
-                    },
+                        self.write_gpr(Reg::Vf,
+                                       if borrow {
+                                           0
+                                       } else {
+                                           1
+                                       });
+                    }
                     Fun::ShiftRight => {
                         self.write_gpr(vx, y >> 1);
                         self.write_gpr(Reg::Vf, y & 0x01);
-                    },
+                    }
                     Fun::SubtractInv => {
                         let (v, borrow) = y.overflowing_sub(x);
                         self.write_gpr(vx, v);
-                        self.write_gpr(Reg::Vf, if borrow { 0 } else { 1 });
-                    },
+                        self.write_gpr(Reg::Vf,
+                                       if borrow {
+                                           0
+                                       } else {
+                                           1
+                                       });
+                    }
                     Fun::ShiftLeft => {
                         self.write_gpr(vx, y << 1);
                         self.write_gpr(Reg::Vf, y << 1);
                     }
                 }
-            },
+            }
             SetI(addr) => {
                 self.i = addr.0;
-            },
+            }
             JumpPlusV0(_addr) => {
                 panic!("instruction not implemented 0xBxxx");
-            },
-            Randomize { 
-                vx, 
-                imm 
-            } => {
+            }
+            Randomize { vx, imm } => {
                 let random_byte = rand::thread_rng().gen::<u8>();
                 self.write_gpr(vx, random_byte & imm.0);
-            },
-            
-            Draw {
-                vx,
-                vy,
-                n
-            } => {
+            }
+
+            Draw { vx, vy, n } => {
                 let x = self.read_gpr(vx) as usize;
                 let y = self.read_gpr(vy) as usize;
                 let from = self.i as usize;
                 let to = from + (n.0 as usize);
-                
+
                 let collision_bit = {
                     let sprite = &self.memory[from..to];
                     self.display.draw(x, y, sprite)
                 };
-                
-                self.write_gpr(Reg::Vf, if collision_bit { 1 } else { 0 });
-            },
-            SkipPressed {
-                vx,
-                inv
-            } => {
+
+                self.write_gpr(Reg::Vf,
+                               if collision_bit {
+                                   1
+                               } else {
+                                   0
+                               });
+            }
+            SkipPressed { vx, inv } => {
                 let x = self.read_gpr(vx) as usize;
                 if !inv {
                     if self.keyboard[x] == 1 {
@@ -220,49 +212,49 @@ impl Chip8 {
                         next_pc += 2;
                     }
                 }
-            },
+            }
             GetDT(vx) => {
                 let dt = self.dt.get();
                 self.write_gpr(vx, dt);
-            },
+            }
             WaitKey(_vx) => {
                 panic!("instruction not implemented 0xFxxA");
-            },
+            }
             SetDT(vx) => {
                 let x = self.read_gpr(vx);
                 self.dt.set(x);
-            },
+            }
             SetST(vx) => {
                 let x = self.read_gpr(vx);
                 self.st.set(x);
-            },
+            }
             AddI(vx) => {
                 let x = self.read_gpr(vx) as u16;
                 self.i = self.i.wrapping_add(x);
-            },
+            }
             LoadGlyph(vx) => {
                 let v = self.read_gpr(vx);
                 self.i = FONT_MEMORY_OFFSET + v as u16 * 5;
-            },
+            }
             StoreBCD(vx) => {
                 let v = self.read_gpr(vx);
                 let i = self.i as usize;
-                
+
                 self.memory[i] = v / 100;
                 self.memory[i + 1] = (v / 10) % 10;
                 self.memory[i + 2] = (v % 100) % 10;
-            },
+            }
             StoreRegs(vx) => {
                 let i = self.i as usize;
                 for offset in 0..(vx.index() as usize + 1) {
-                   self.memory[i + offset] = self.gpr[offset];
+                    self.memory[i + offset] = self.gpr[offset];
                 }
                 self.i += vx as u16 + 1;
-            },
+            }
             LoadRegs(vx) => {
                 let i = self.i as usize;
                 for offset in 0..(vx.index() as usize + 1) {
-                   self.gpr[offset] = self.memory[i + offset];
+                    self.gpr[offset] = self.memory[i + offset];
                 }
                 self.i += vx as u16 + 1;
             }
@@ -270,11 +262,11 @@ impl Chip8 {
 
         next_pc
     }
-    
+
     fn read_gpr(&self, reg: Reg) -> u8 {
         self.gpr[reg.index() as usize]
     }
-    
+
     fn write_gpr(&mut self, reg: Reg, value: u8) {
         self.gpr[reg.index() as usize] = value;
     }

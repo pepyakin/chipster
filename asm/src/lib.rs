@@ -22,7 +22,6 @@ macro_rules! check_instruction {
         #[test]
         fn $test_name() {
             use byteorder::{ByteOrder, BigEndian};
-            use std::io::Read;
             
             let mut buf = [0u8; 2];
             BigEndian::write_u16(&mut buf, $expected);

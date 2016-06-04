@@ -105,6 +105,14 @@ fn match_instruction(mnemonic: &str, operands: Vec<Operand>) -> vm::instruction:
                     }
                 }
                 [Operand::IndexReg, Operand::Literal(kk)] => Instruction::SetI(kk.as_addr()),
+                [Operand::Register(vx), Operand::DT] => Instruction::GetDT(vx),
+                [Operand::Register(vx), Operand::K] => Instruction::WaitKey(vx),
+                [Operand::DT, Operand::Register(vx)] => Instruction::SetDT(vx),
+                [Operand::ST, Operand::Register(vx)] => Instruction::SetST(vx),
+                [Operand::F, Operand::Register(vx)] => Instruction::LoadGlyph(vx),
+                [Operand::B, Operand::Register(vx)] => Instruction::StoreBCD(vx),
+                [Operand::DerefIndexReg, Operand::Register(vx)] => Instruction::StoreRegs(vx),
+                [Operand::Register(vx), Operand::DerefIndexReg] => Instruction::LoadRegs(vx),
 
                 _ => panic!(unsupported_operands()),
             }

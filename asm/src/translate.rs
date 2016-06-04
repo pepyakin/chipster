@@ -39,7 +39,14 @@ fn match_instruction(mnemonic: &str, operands: Vec<Operand>) -> vm::instruction:
 
     match mnemonic {
         "CLS" => vm::instruction::Instruction::ClearScreen,
-        "JUMP" => {
+        "RET" => Instruction::Ret,
+        "SYS" => {
+            match &operands[..] {
+                [Operand::Literal(lit)] => Instruction::Sys(lit.as_addr()),
+                _ => panic!(unsupported_operands()),
+            }
+        }
+        "JP" => {
             match &operands[..] {
                 [Operand::Literal(lit)] => Instruction::Jump(lit.as_addr()),
                 _ => panic!(unsupported_operands()),
@@ -114,6 +121,25 @@ fn match_instruction(mnemonic: &str, operands: Vec<Operand>) -> vm::instruction:
                 [Operand::DerefIndexReg, Operand::Register(vx)] => Instruction::StoreRegs(vx),
                 [Operand::Register(vx), Operand::DerefIndexReg] => Instruction::LoadRegs(vx),
 
+                _ => panic!(unsupported_operands()),
+            }
+        }
+        "ADD" => {
+            match &operands[..] {
+                [Operand::Register(vx), Operand::Literal(kk)] => {
+                    Instruction::AddImm {
+                        vx: vx,
+                        imm: kk.as_imm(),
+                    }
+                }
+                [Operand::IndexReg, Operand::Register(vx)] => Instruction::AddI(vx),
+                [Operand::Register(vx), Operand::Register(vy)] => {
+                    Instruction::Apply {
+                        vx: vx,
+                        vy: vy,
+                        f: Fun::Add
+                    }
+                }
                 _ => panic!(unsupported_operands()),
             }
         }

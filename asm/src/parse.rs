@@ -31,8 +31,23 @@ pub enum Operand {
     Label(String),
     Register(Reg),
 
-    /// Like I
+    /// I
     IndexReg,
+
+    /// [I]
+    DerefIndexReg,
+
+    /// F
+    F,
+
+    /// B
+    B,
+
+    /// DT
+    DT,
+
+    // ST
+    ST,
 }
 
 impl Operand {
@@ -115,11 +130,11 @@ fn instruction<I>(input: State<I>) -> ParseResult<Statement, I>
 fn operand<I>(input: State<I>) -> ParseResult<Operand, I>
     where I: Stream<Item = char>
 {
-    use combine::{try, many1, digit, token, hex_digit};
+    use combine::{try, many1, digit, token, hex_digit, string, choice};
 
     let literal = many1(digit())
         .and_then(|s: String| s.parse::<u16>())
-        .map(|x| Operand::new_literal(x));
+        .map(Operand::new_literal);
     let register = token('V')
         .with(hex_digit())
         .map(|x: char| {
@@ -127,10 +142,23 @@ fn operand<I>(input: State<I>) -> ParseResult<Operand, I>
             Reg::from_index(index)
         })
         .map(Operand::Register);
-
     let index_reg = token('I').map(|_| Operand::IndexReg);
+    let deref_index_reg = string("[I]").map(|_| Operand::DerefIndexReg);
+    let font_designator = token('F').map(|_| Operand::F);
+    let bcd_designator = token('B').map(|_| Operand::B);
+    let dt_reg = string("DT").map(|_| Operand::DT);
+    let st_reg = string("ST").map(|_| Operand::ST);
+    // TODO: Label
 
-    try(literal).or(try(index_reg)).or(register).parse_state(input)
+    try(literal)
+        .or(try(index_reg))
+        .or(try(deref_index_reg))
+        .or(try(font_designator))
+        .or(try(bcd_designator))
+        .or(try(dt_reg))
+        .or(try(st_reg))
+        .or(try(register))
+        .parse_state(input)
 }
 
 #[test]
@@ -288,6 +316,46 @@ fn test_operand_index_reg() {
 fn test_operand_gpr() {
     let result = parser(operand).parse("V9");
     let expected = Operand::Register(Reg::V9);
+
+    assert_eq!(result, Ok((expected, "")));
+}
+
+#[test]
+fn test_operand_deref_index_reg() {
+    let result = parser(operand).parse("[I]");
+    let expected = Operand::DerefIndexReg;
+
+    assert_eq!(result, Ok((expected, "")));
+}
+
+#[test]
+fn test_operand_f() {
+    let result = parser(operand).parse("F");
+    let expected = Operand::F;
+
+    assert_eq!(result, Ok((expected, "")));
+}
+
+#[test]
+fn test_operand_b() {
+    let result = parser(operand).parse("B");
+    let expected = Operand::B;
+
+    assert_eq!(result, Ok((expected, "")));
+}
+
+#[test]
+fn test_operand_st() {
+    let result = parser(operand).parse("DT");
+    let expected = Operand::DT;
+
+    assert_eq!(result, Ok((expected, "")));
+}
+
+#[test]
+fn test_operand_dt() {
+    let result = parser(operand).parse("ST");
+    let expected = Operand::ST;
 
     assert_eq!(result, Ok((expected, "")));
 }

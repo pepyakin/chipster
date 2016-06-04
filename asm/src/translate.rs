@@ -2,6 +2,7 @@
 use super::parse::*;
 
 use vm::instruction::Addr;
+use vm::instruction::Reg;
 use vm::instruction::Imm;
 use vm::instruction::Instruction;
 use vm::instruction::Fun;
@@ -49,6 +50,9 @@ fn match_instruction(mnemonic: &str, operands: Vec<Operand>) -> vm::instruction:
         "JP" => {
             match &operands[..] {
                 [Operand::Literal(lit)] => Instruction::Jump(lit.as_addr()),
+                [Operand::Register(Reg::V0), Operand::Literal(lit)] => {
+                    Instruction::JumpPlusV0(lit.as_addr())
+                }
                 _ => panic!(unsupported_operands()),
             }
         }
@@ -137,7 +141,91 @@ fn match_instruction(mnemonic: &str, operands: Vec<Operand>) -> vm::instruction:
                     Instruction::Apply {
                         vx: vx,
                         vy: vy,
-                        f: Fun::Add
+                        f: Fun::Add,
+                    }
+                }
+                _ => panic!(unsupported_operands()),
+            }
+        }
+        "OR" => {
+            match &operands[..] {
+                [Operand::Register(vx), Operand::Register(vy)] => {
+                    Instruction::Apply {
+                        vx: vx,
+                        vy: vy,
+                        f: Fun::Or,
+                    }
+                }
+                _ => panic!(unsupported_operands()),
+            }
+        }
+        "AND" => {
+            match &operands[..] {
+                [Operand::Register(vx), Operand::Register(vy)] => {
+                    Instruction::Apply {
+                        vx: vx,
+                        vy: vy,
+                        f: Fun::And,
+                    }
+                }
+                _ => panic!(unsupported_operands()),
+            }
+        }
+        "XOR" => {
+            match &operands[..] {
+                [Operand::Register(vx), Operand::Register(vy)] => {
+                    Instruction::Apply {
+                        vx: vx,
+                        vy: vy,
+                        f: Fun::Xor,
+                    }
+                }
+                _ => panic!(unsupported_operands()),
+            }
+        }
+        "SUB" => {
+            match &operands[..] {
+                [Operand::Register(vx), Operand::Register(vy)] => {
+                    Instruction::Apply {
+                        vx: vx,
+                        vy: vy,
+                        f: Fun::Subtract,
+                    }
+                }
+                _ => panic!(unsupported_operands()),
+            }
+        }
+        "SHR" => {
+            match &operands[..] {
+                [Operand::Register(vx), Operand::Register(vy)] => {
+                    Instruction::Apply {
+                        vx: vx,
+                        vy: vy,
+                        f: Fun::ShiftRight,
+                    }
+                }
+                _ => panic!(unsupported_operands()),
+            }
+        }
+        "SHL" => {
+            match &operands[..] {
+                [Operand::Register(vx), Operand::Register(vy)] => {
+                    Instruction::Apply {
+                        vx: vx,
+                        vy: vy,
+                        f: Fun::ShiftLeft,
+                    }
+                }
+                _ => panic!(unsupported_operands()),
+            }
+        }
+        "SUBN" => {
+            match &operands[..] {
+                [Operand::Register(vx), Operand::Register(vy)] => {
+                    Instruction::Apply {
+                        vx: vx,
+                        vy: vy,
+                        f: Fun::SubtractInv,
                     }
                 }
                 _ => panic!(unsupported_operands()),

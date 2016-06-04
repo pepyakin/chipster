@@ -57,6 +57,12 @@ impl Imm {
 #[derive(Debug, PartialEq)]
 pub struct Imm4(pub u8); // TODO: Only & 0x0F
 
+impl Imm4 {
+    fn encode_as_n(self) -> u16 {
+        self.0 as u16
+    }
+}
+
 enum_from_primitive! {
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub enum Reg {
@@ -297,7 +303,7 @@ impl Instruction {
                     f: {
                         use enum_primitive::FromPrimitive;
 
-                        Fun::from_u8(iw.n()).expect("unrecognized instruction {:?}")
+                        Fun::from_u8(iw.n()).expect("unrecognized instruction")
                     },
                 }
             }
@@ -382,6 +388,26 @@ impl Instruction {
                 0x8000 | vx.encode_as_vx() | vy.encode_as_vy() | fun_op
             }
             SetI(addr) => 0xA000 | addr.0,
+            JumpPlusV0(addr) => 0xB000 | addr.0,
+            Randomize { vx, imm } => 0xC000 | vx.encode_as_vx() | imm.encode_as_kk(),
+            Draw { vx, vy, n } => 0xD000 | vx.encode_as_vx() | vy.encode_as_vy() | n.encode_as_n(),
+            SkipPressed { vx, inv } => {
+                let sub_op = if !inv {
+                    0x009E
+                } else {
+                    0x00A1
+                };
+                0xE000 | vx.encode_as_vx() | sub_op 
+            }
+            GetDT(vx) => 0xF000 | vx.encode_as_vx() | 0x0007,
+            WaitKey(vx) => 0xF000 | vx.encode_as_vx() | 0x000A,
+            SetDT(vx) => 0xF000 | vx.encode_as_vx() | 0x0015,
+            SetST(vx) => 0xF000 | vx.encode_as_vx() | 0x0018,
+            AddI(vx) => 0xF000 | vx.encode_as_vx() | 0x001E,
+            LoadGlyph(vx) => 0xF000 | vx.encode_as_vx() | 0x0029,
+            StoreBCD(vx) => 0xF000 | vx.encode_as_vx() | 0x0033,
+            StoreRegs(vx) => 0xF000 | vx.encode_as_vx() | 0x0055,
+            LoadRegs(vx) => 0xF000 | vx.encode_as_vx() | 0x0065,
             _ => unimplemented!(),  
         };
         InstructionWord(encoding)

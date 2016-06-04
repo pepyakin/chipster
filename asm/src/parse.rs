@@ -14,6 +14,11 @@ impl LiteralValue {
         LiteralValue { raw: raw }
     }
 
+    pub fn as_u4(&self) -> u8 {
+        assert!((self.raw & 0x0F) == self.raw);
+        self.raw as u8
+    }
+
     pub fn as_u8(&self) -> u8 {
         assert!((self.raw & 0xFF) == self.raw);
         self.raw as u8
@@ -57,7 +62,7 @@ impl Operand {
     pub fn new_literal(value: u16) -> Operand {
         Operand::Literal(LiteralValue::new(value))
     }
-    
+
     pub fn new_label(name: String) -> Operand {
         Operand::Label(name)
     }
@@ -151,10 +156,12 @@ fn operand<I>(input: State<I>) -> ParseResult<Operand, I>
     use combine::{many1, digit, token, hex_digit, string};
 
     let literal = parser(|input| {
-        many1(digit())
+        let hex_literal = token('#').with(many1(digit())).and_then(|s: String| u16::from_str_radix(s.as_str(), 16)).map(Operand::new_literal);
+        let dec_literal = many1(digit())
             .and_then(|s: String| s.parse::<u16>())
-            .map(Operand::new_literal)
-            .parse_state(input)
+            .map(Operand::new_literal);  
+        
+        hex_literal.or(dec_literal).parse_state(input)
     });
     let register = parser(|input| {
         token('V')
@@ -332,9 +339,17 @@ fn test_instruction_with_spaced_operands_before_comma() {
 }
 
 #[test]
-fn test_operand_literal() {
+fn test_operand_dec_literal() {
     let result = parser(operand).parse("1312");
     let expected = Operand::new_literal(1312);
+
+    assert_eq!(result, Ok((expected, "")));
+}
+
+#[test]
+fn test_operand_hex_literal() {
+    let result = parser(operand).parse("#228");
+    let expected = Operand::new_literal(0x228);
 
     assert_eq!(result, Ok((expected, "")));
 }

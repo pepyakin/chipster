@@ -4,6 +4,7 @@ use super::parse::*;
 use vm::instruction::Addr;
 use vm::instruction::Reg;
 use vm::instruction::Imm;
+use vm::instruction::Imm4;
 use vm::instruction::Instruction;
 use vm::instruction::Fun;
 use super::vm;
@@ -11,6 +12,10 @@ use super::vm;
 impl LiteralValue {
     fn as_imm(&self) -> Imm {
         Imm(self.as_u8())
+    }
+
+    fn as_imm4(&self) -> Imm4 {
+        Imm4(self.as_u4())
     }
 
     fn as_addr(&self) -> Addr {
@@ -226,6 +231,51 @@ fn match_instruction(mnemonic: &str, operands: Vec<Operand>) -> vm::instruction:
                         vx: vx,
                         vy: vy,
                         f: Fun::SubtractInv,
+                    }
+                }
+                _ => panic!(unsupported_operands()),
+            }
+        }
+        "SKP" => {
+            match &operands[..] {
+                [Operand::Register(vx)] => {
+                    Instruction::SkipPressed {
+                        vx: vx,
+                        inv: false,
+                    }
+                }
+                _ => panic!(unsupported_operands()),
+            }
+        }
+        "SKNP" => {
+            match &operands[..] {
+                [Operand::Register(vx)] => {
+                    Instruction::SkipPressed {
+                        vx: vx,
+                        inv: true,
+                    }
+                }
+                _ => panic!(unsupported_operands()),
+            }
+        }
+        "DRW" => {
+            match &operands[..] {
+                [Operand::Register(vx), Operand::Register(vy), Operand::Literal(lit)] => {
+                    Instruction::Draw {
+                        vx: vx,
+                        vy: vy,
+                        n: lit.as_imm4(),
+                    }
+                }
+                _ => panic!(unsupported_operands()),
+            }
+        }
+        "RND" => {
+            match &operands[..] {
+                [Operand::Register(vx), Operand::Literal(lit)] => {
+                    Instruction::Randomize {
+                        vx: vx,
+                        imm: lit.as_imm(),
                     }
                 }
                 _ => panic!(unsupported_operands()),

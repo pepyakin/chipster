@@ -7,6 +7,8 @@ mod stack;
 mod timer;
 mod display;
 mod vm;
+mod regfile;
+
 pub mod instruction;
 
 pub use self::vm::Chip8;

@@ -79,7 +79,7 @@ pub fn parse_source(source: &str) -> Vec<Statement> {
     parser(stmts).parse(source).map(|x| x.0).unwrap()
 }
 
-fn stmts<I>(input: State<I>) -> ParseResult<Vec<Statement>, I>
+fn stmts<'a, I: 'a>(input: State<I>) -> ParseResult<Vec<Statement>, I>
     where I: Stream<Item = char>
 {
     use combine::{many, try, newline};
@@ -97,13 +97,13 @@ fn flatten_vec<T>(v: Vec<Option<T>>) -> Vec<T> {
     v.into_iter().flat_map(|x| x.map(|y| vec![y]).unwrap_or_default()).collect()
 }
 
-fn stmt<I>(input: State<I>) -> ParseResult<Statement, I>
+fn stmt<'a, I: 'a>(input: State<I>) -> ParseResult<Statement, I>
     where I: Stream<Item = char>
 {
     use combine::try;
 
-    let label_parser = parser(horizontal_spaces).with(parser(label));
-    let instruction_parser = parser(horizontal_spaces).with(parser(instruction));
+    let label_parser = horizontal_spaces().with(parser(label));
+    let instruction_parser = horizontal_spaces().with(parser(instruction));
 
     try(label_parser).or(instruction_parser).parse_state(input)
 }
@@ -113,7 +113,7 @@ fn label<I>(input: State<I>) -> ParseResult<Statement, I>
 {
     use combine::{token, try};
 
-    let label = parser(ident).map(Statement::Label);
+    let label = ident().map(Statement::Label);
 
     try(label).skip(token(':')).parse_state(input)
 }
@@ -127,27 +127,23 @@ fn instruction<I>(input: State<I>) -> ParseResult<Statement, I>
     let mnemonic =
         many1(letter()).map(|x: String| x.to_ascii_uppercase()).message("mnemonic expected");
 
-    let operands = sep_by(between(parser(horizontal_spaces),
-                                  parser(horizontal_spaces),
+    let operands = sep_by(between(horizontal_spaces(),
+                                  horizontal_spaces(),
                                   parser(operand::<I>)),
                           char(','));
 
-    let opt_operands = optional(between(parser(horizontal_spaces),
-                                        parser(horizontal_spaces),
-                                        operands));
+    let opt_operands = optional(between(horizontal_spaces(), horizontal_spaces(), operands));
 
     mnemonic.and(opt_operands)
         .map(|x| Statement::Instruction(x.0, x.1.unwrap_or_default()))
         .parse_state(input)
 }
 
-fn horizontal_spaces<I>(input: State<I>) -> ParseResult<(), I>
-    where I: Stream<Item = char>
+fn horizontal_spaces<'a, I>() -> Box<Parser<Input = I, Output = ()> + 'a>
+    where I: Stream<Item = char> + 'a
 {
-    // TODO: Define custom parser
     use combine::{tab, char, skip_many};
-
-    skip_many(tab().or(char(' '))).map(|_| ()).parse_state(input)
+    Box::new(skip_many(tab().or(char(' '))).map(|_| ()))
 }
 
 fn operand<I>(input: State<I>) -> ParseResult<Operand, I>
@@ -156,11 +152,14 @@ fn operand<I>(input: State<I>) -> ParseResult<Operand, I>
     use combine::{many1, digit, token, hex_digit, string};
 
     let literal = parser(|input| {
-        let hex_literal = token('#').with(many1(digit())).and_then(|s: String| u16::from_str_radix(s.as_str(), 16)).map(Operand::new_literal);
+        let hex_literal = token('#')
+            .with(many1(digit()))
+            .and_then(|s: String| u16::from_str_radix(s.as_str(), 16))
+            .map(Operand::new_literal);
         let dec_literal = many1(digit())
             .and_then(|s: String| s.parse::<u16>())
-            .map(Operand::new_literal);  
-        
+            .map(Operand::new_literal);
+
         hex_literal.or(dec_literal).parse_state(input)
     });
     let register = parser(|input| {
@@ -173,6 +172,7 @@ fn operand<I>(input: State<I>) -> ParseResult<Operand, I>
             .map(Operand::Register)
             .parse_state(input)
     });
+    
 
     let index_reg = parser(|input| token('I').map(|_| Operand::IndexReg).parse_state(input));
     let deref_index_reg =
@@ -182,7 +182,7 @@ fn operand<I>(input: State<I>) -> ParseResult<Operand, I>
     let kbd_designator = parser(|input| token('K').map(|_| Operand::K).parse_state(input));
     let dt_reg = string("DT").map(|_| Operand::DT);
     let st_reg = string("ST").map(|_| Operand::ST);
-    let label = parser(ident).map(Operand::new_label);
+    let label = ident().map(Operand::new_label);
 
     literal.or(index_reg)
         .or(deref_index_reg)
@@ -196,11 +196,11 @@ fn operand<I>(input: State<I>) -> ParseResult<Operand, I>
         .parse_state(input)
 }
 
-fn ident<I>(input: State<I>) -> ParseResult<String, I>
-    where I: Stream<Item = char>
+fn ident<'a, I>() -> Box<Parser<Input = I, Output = String> + 'a>
+    where I: Stream<Item = char> + 'a
 {
     use combine::{many1, letter, token};
-    many1(letter().or(token('_'))).parse_state(input)
+    Box::new(many1(letter().or(token('_'))))
 }
 
 #[test]

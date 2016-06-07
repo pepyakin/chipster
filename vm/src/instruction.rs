@@ -397,7 +397,7 @@ impl Instruction {
                 } else {
                     0x00A1
                 };
-                0xE000 | vx.encode_as_vx() | sub_op 
+                0xE000 | vx.encode_as_vx() | sub_op
             }
             GetDT(vx) => 0xF000 | vx.encode_as_vx() | 0x0007,
             WaitKey(vx) => 0xF000 | vx.encode_as_vx() | 0x000A,

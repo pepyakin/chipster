@@ -172,7 +172,7 @@ fn operand<I>(input: State<I>) -> ParseResult<Operand, I>
             .map(Operand::Register)
             .parse_state(input)
     });
-    
+
 
     let index_reg = parser(|input| token('I').map(|_| Operand::IndexReg).parse_state(input));
     let deref_index_reg =

@@ -150,7 +150,7 @@ pub enum Instruction {
     /// 1nnn - JP addr
     Jump(Addr),
 
-    // 2nnn - CALL addr
+    /// 2nnn - CALL addr
     Call(Addr),
 
     /// 3xkk - SE Vx, byte

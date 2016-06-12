@@ -1,0 +1,14 @@
+language: rust
+language: rust
+rust:
+  - nightly
+notifications:
+  email:
+    - s.pepyakin@gmail.com
+before_script:
+  - rustc --version
+  - cargo --version
+script:
+  - cargo test
+  - cargo test -p vm
+  - cargo test -p asm

@@ -48,14 +48,14 @@ fn match_instruction(mnemonic: &str, operands: Vec<Operand>) -> vm::instruction:
         "RET" => Instruction::Ret,
         "SYS" => {
             match &operands[..] {
-                [Operand::Literal(lit)] => Instruction::Sys(lit.as_addr()),
+                &[Operand::Literal(lit)] => Instruction::Sys(lit.as_addr()),
                 _ => panic!(unsupported_operands()),
             }
         }
         "JP" => {
             match &operands[..] {
-                [Operand::Literal(lit)] => Instruction::Jump(lit.as_addr()),
-                [Operand::Register(Reg::V0), Operand::Literal(lit)] => {
+                &[Operand::Literal(lit)] => Instruction::Jump(lit.as_addr()),
+                &[Operand::Register(Reg::V0), Operand::Literal(lit)] => {
                     Instruction::JumpPlusV0(lit.as_addr())
                 }
                 _ => panic!(unsupported_operands()),
@@ -63,20 +63,20 @@ fn match_instruction(mnemonic: &str, operands: Vec<Operand>) -> vm::instruction:
         }
         "CALL" => {
             match &operands[..] {
-                [Operand::Literal(lit)] => Instruction::Call(lit.as_addr()),
+                &[Operand::Literal(lit)] => Instruction::Call(lit.as_addr()),
                 _ => panic!(unsupported_operands()),
             }
         }
         "SE" => {
             match &operands[..] {
-                [Operand::Register(vx), Operand::Literal(kk)] => {
+                &[Operand::Register(vx), Operand::Literal(kk)] => {
                     Instruction::SkipEqImm {
                         vx: vx,
                         imm: kk.as_imm(),
                         inv: false,
                     }
                 }
-                [Operand::Register(vx), Operand::Register(vy)] => {
+                &[Operand::Register(vx), Operand::Register(vy)] => {
                     Instruction::SkipEqReg {
                         vx: vx,
                         vy: vy,
@@ -88,14 +88,14 @@ fn match_instruction(mnemonic: &str, operands: Vec<Operand>) -> vm::instruction:
         }
         "SNE" => {
             match &operands[..] {
-                [Operand::Register(vx), Operand::Literal(kk)] => {
+                &[Operand::Register(vx), Operand::Literal(kk)] => {
                     Instruction::SkipEqImm {
                         vx: vx,
                         imm: kk.as_imm(),
                         inv: true,
                     }
                 }
-                [Operand::Register(vx), Operand::Register(vy)] => {
+                &[Operand::Register(vx), Operand::Register(vy)] => {
                     Instruction::SkipEqReg {
                         vx: vx,
                         vy: vy,
@@ -107,42 +107,42 @@ fn match_instruction(mnemonic: &str, operands: Vec<Operand>) -> vm::instruction:
         }
         "LD" => {
             match &operands[..] {
-                [Operand::Register(vx), Operand::Literal(kk)] => {
+                &[Operand::Register(vx), Operand::Literal(kk)] => {
                     Instruction::PutImm {
                         vx: vx,
                         imm: kk.as_imm(),
                     }
                 }
-                [Operand::Register(vx), Operand::Register(vy)] => {
+                &[Operand::Register(vx), Operand::Register(vy)] => {
                     Instruction::Apply {
                         vx: vx,
                         vy: vy,
                         f: Fun::Id,
                     }
                 }
-                [Operand::IndexReg, Operand::Literal(kk)] => Instruction::SetI(kk.as_addr()),
-                [Operand::Register(vx), Operand::DT] => Instruction::GetDT(vx),
-                [Operand::Register(vx), Operand::K] => Instruction::WaitKey(vx),
-                [Operand::DT, Operand::Register(vx)] => Instruction::SetDT(vx),
-                [Operand::ST, Operand::Register(vx)] => Instruction::SetST(vx),
-                [Operand::F, Operand::Register(vx)] => Instruction::LoadGlyph(vx),
-                [Operand::B, Operand::Register(vx)] => Instruction::StoreBCD(vx),
-                [Operand::DerefIndexReg, Operand::Register(vx)] => Instruction::StoreRegs(vx),
-                [Operand::Register(vx), Operand::DerefIndexReg] => Instruction::LoadRegs(vx),
+                &[Operand::IndexReg, Operand::Literal(kk)] => Instruction::SetI(kk.as_addr()),
+                &[Operand::Register(vx), Operand::DT] => Instruction::GetDT(vx),
+                &[Operand::Register(vx), Operand::K] => Instruction::WaitKey(vx),
+                &[Operand::DT, Operand::Register(vx)] => Instruction::SetDT(vx),
+                &[Operand::ST, Operand::Register(vx)] => Instruction::SetST(vx),
+                &[Operand::F, Operand::Register(vx)] => Instruction::LoadGlyph(vx),
+                &[Operand::B, Operand::Register(vx)] => Instruction::StoreBCD(vx),
+                &[Operand::DerefIndexReg, Operand::Register(vx)] => Instruction::StoreRegs(vx),
+                &[Operand::Register(vx), Operand::DerefIndexReg] => Instruction::LoadRegs(vx),
 
                 _ => panic!(unsupported_operands()),
             }
         }
         "ADD" => {
             match &operands[..] {
-                [Operand::Register(vx), Operand::Literal(kk)] => {
+                &[Operand::Register(vx), Operand::Literal(kk)] => {
                     Instruction::AddImm {
                         vx: vx,
                         imm: kk.as_imm(),
                     }
                 }
-                [Operand::IndexReg, Operand::Register(vx)] => Instruction::AddI(vx),
-                [Operand::Register(vx), Operand::Register(vy)] => {
+                &[Operand::IndexReg, Operand::Register(vx)] => Instruction::AddI(vx),
+                &[Operand::Register(vx), Operand::Register(vy)] => {
                     Instruction::Apply {
                         vx: vx,
                         vy: vy,
@@ -154,7 +154,7 @@ fn match_instruction(mnemonic: &str, operands: Vec<Operand>) -> vm::instruction:
         }
         "OR" => {
             match &operands[..] {
-                [Operand::Register(vx), Operand::Register(vy)] => {
+                &[Operand::Register(vx), Operand::Register(vy)] => {
                     Instruction::Apply {
                         vx: vx,
                         vy: vy,
@@ -166,7 +166,7 @@ fn match_instruction(mnemonic: &str, operands: Vec<Operand>) -> vm::instruction:
         }
         "AND" => {
             match &operands[..] {
-                [Operand::Register(vx), Operand::Register(vy)] => {
+                &[Operand::Register(vx), Operand::Register(vy)] => {
                     Instruction::Apply {
                         vx: vx,
                         vy: vy,
@@ -178,7 +178,7 @@ fn match_instruction(mnemonic: &str, operands: Vec<Operand>) -> vm::instruction:
         }
         "XOR" => {
             match &operands[..] {
-                [Operand::Register(vx), Operand::Register(vy)] => {
+                &[Operand::Register(vx), Operand::Register(vy)] => {
                     Instruction::Apply {
                         vx: vx,
                         vy: vy,
@@ -190,7 +190,7 @@ fn match_instruction(mnemonic: &str, operands: Vec<Operand>) -> vm::instruction:
         }
         "SUB" => {
             match &operands[..] {
-                [Operand::Register(vx), Operand::Register(vy)] => {
+                &[Operand::Register(vx), Operand::Register(vy)] => {
                     Instruction::Apply {
                         vx: vx,
                         vy: vy,
@@ -202,7 +202,7 @@ fn match_instruction(mnemonic: &str, operands: Vec<Operand>) -> vm::instruction:
         }
         "SHR" => {
             match &operands[..] {
-                [Operand::Register(vx), Operand::Register(vy)] => {
+                &[Operand::Register(vx), Operand::Register(vy)] => {
                     Instruction::Apply {
                         vx: vx,
                         vy: vy,
@@ -214,7 +214,7 @@ fn match_instruction(mnemonic: &str, operands: Vec<Operand>) -> vm::instruction:
         }
         "SHL" => {
             match &operands[..] {
-                [Operand::Register(vx), Operand::Register(vy)] => {
+                &[Operand::Register(vx), Operand::Register(vy)] => {
                     Instruction::Apply {
                         vx: vx,
                         vy: vy,
@@ -226,7 +226,7 @@ fn match_instruction(mnemonic: &str, operands: Vec<Operand>) -> vm::instruction:
         }
         "SUBN" => {
             match &operands[..] {
-                [Operand::Register(vx), Operand::Register(vy)] => {
+                &[Operand::Register(vx), Operand::Register(vy)] => {
                     Instruction::Apply {
                         vx: vx,
                         vy: vy,
@@ -238,7 +238,7 @@ fn match_instruction(mnemonic: &str, operands: Vec<Operand>) -> vm::instruction:
         }
         "SKP" => {
             match &operands[..] {
-                [Operand::Register(vx)] => {
+                &[Operand::Register(vx)] => {
                     Instruction::SkipPressed {
                         vx: vx,
                         inv: false,
@@ -249,7 +249,7 @@ fn match_instruction(mnemonic: &str, operands: Vec<Operand>) -> vm::instruction:
         }
         "SKNP" => {
             match &operands[..] {
-                [Operand::Register(vx)] => {
+                &[Operand::Register(vx)] => {
                     Instruction::SkipPressed {
                         vx: vx,
                         inv: true,
@@ -260,7 +260,7 @@ fn match_instruction(mnemonic: &str, operands: Vec<Operand>) -> vm::instruction:
         }
         "DRW" => {
             match &operands[..] {
-                [Operand::Register(vx), Operand::Register(vy), Operand::Literal(lit)] => {
+                &[Operand::Register(vx), Operand::Register(vy), Operand::Literal(lit)] => {
                     Instruction::Draw {
                         vx: vx,
                         vy: vy,
@@ -272,7 +272,7 @@ fn match_instruction(mnemonic: &str, operands: Vec<Operand>) -> vm::instruction:
         }
         "RND" => {
             match &operands[..] {
-                [Operand::Register(vx), Operand::Literal(lit)] => {
+                &[Operand::Register(vx), Operand::Literal(lit)] => {
                     Instruction::Randomize {
                         vx: vx,
                         imm: lit.as_imm(),

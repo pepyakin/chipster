@@ -9,6 +9,8 @@ use vm::instruction::Instruction;
 use vm::instruction::Fun;
 use super::vm;
 
+use std::collections::HashMap;
+
 impl LiteralValue {
     fn as_imm(&self) -> Imm {
         Imm(self.as_u8())
@@ -24,7 +26,9 @@ impl LiteralValue {
 }
 
 pub fn translate(statements: Vec<Statement>) -> Box<[u8]> {
-    let mut instructions: Vec<vm::instruction::Instruction> = vec![];
+    let mut instructions: Vec<Instruction> = Vec::with_capacity(statements.len());
+    let mut label_map = HashMap::new();
+
     for statement in statements.into_iter() {
         match statement {
             Statement::Instruction(mnemonic, operands) => {
@@ -32,11 +36,21 @@ pub fn translate(statements: Vec<Statement>) -> Box<[u8]> {
                 let instruction = match_instruction(&mnemonic, operands);
                 instructions.push(instruction);
             }
-            _ => {}
+            Statement::Label(label) => {
+                let current_index = instructions.len();
+
+                if !label_map.contains_key(&label) {
+                    label_map.insert(label, current_index);
+                } else {
+                    panic!("duplicate label: {}", label)
+                }
+            }
         }
     }
+    
+    
 
-    encode_instructions(instructions)
+    emit_instructions(instructions)
 }
 
 fn match_instruction(mnemonic: &str, operands: Vec<Operand>) -> vm::instruction::Instruction {
@@ -285,7 +299,7 @@ fn match_instruction(mnemonic: &str, operands: Vec<Operand>) -> vm::instruction:
     }
 }
 
-fn encode_instructions(instructions: Vec<Instruction>) -> Box<[u8]> {
+fn emit_instructions(instructions: Vec<Instruction>) -> Box<[u8]> {
     instructions.into_iter()
         .flat_map::<Vec<u8>, _>(|instruction| {
             fn unpack_word(word: u16) -> Vec<u8> {

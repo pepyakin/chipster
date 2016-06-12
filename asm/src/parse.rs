@@ -30,7 +30,7 @@ impl LiteralValue {
     }
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum Operand {
     Literal(LiteralValue),
     Label(String),
@@ -68,7 +68,7 @@ impl Operand {
     }
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum Statement {
     Label(String),
     Instruction(String, Vec<Operand>),

@@ -59,9 +59,7 @@ fn match_instruction(mnemonic: &str,
                      operands: &Vec<Operand>,
                      label_map: &HashMap<String, Addr>)
                      -> Instruction {
-    let resolve_label = |label: &String| {
-        *label_map.get(label).expect("Undefined label")
-    };
+    let resolve_label = |label: &String| *label_map.get(label).expect("Undefined label");
     let unsupported_operands =
         || format!("unsupported operands {:?} for {:?}", &operands, mnemonic);
 
@@ -149,7 +147,9 @@ fn match_instruction(mnemonic: &str,
                     }
                 }
                 &[Operand::IndexReg, Operand::Literal(kk)] => Instruction::SetI(kk.as_addr()),
-                &[Operand::IndexReg, Operand::Label(ref label)] => Instruction::SetI(resolve_label(label)),
+                &[Operand::IndexReg, Operand::Label(ref label)] => {
+                    Instruction::SetI(resolve_label(label))
+                }
                 &[Operand::Register(vx), Operand::DT] => Instruction::GetDT(vx),
                 &[Operand::Register(vx), Operand::K] => Instruction::WaitKey(vx),
                 &[Operand::DT, Operand::Register(vx)] => Instruction::SetDT(vx),
@@ -339,10 +339,11 @@ mod tests {
 
     #[test]
     fn test_compile_label_forwad() {
-        let statements: Vec<Statement> = vec![
-            Statement::Instruction("CALL".to_string(), vec![Operand::Label("foo".to_string())]),
-            Statement::Label("foo".to_string()),
-            Statement::Instruction("RET".to_string(), vec![])];
+        let statements: Vec<Statement> = vec![Statement::Instruction("CALL".to_string(),
+                                                                     vec![Operand::Label("foo"
+                                                                              .to_string())]),
+                                              Statement::Label("foo".to_string()),
+                                              Statement::Instruction("RET".to_string(), vec![])];
         let binary = translate(statements);
 
         assert_eq!(binary, vec![0x22, 0x02, 0x00, 0xEE].into_boxed_slice());

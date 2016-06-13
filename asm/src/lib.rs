@@ -17,6 +17,12 @@ pub fn compile(source: &str) -> Box<[u8]> {
 mod tests {
     use super::*;
 
+    #[test]
+    fn compile_inline_loop() {
+        let binary = compile("loop: JP loop");
+        assert_eq!(binary, vec![0x12, 0x00].into_boxed_slice());
+    }
+
     macro_rules! check_instruction {
         (
             name: $test_name:ident,

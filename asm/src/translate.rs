@@ -78,6 +78,7 @@ fn match_instruction(mnemonic: &str,
         "JP" => {
             match &operands[..] {
                 &[Operand::Literal(lit)] => Instruction::Jump(lit.as_addr()),
+                &[Operand::Label(ref label)] => Instruction::Jump(resolve_label(label)),
                 &[Operand::Register(Reg::V0), Operand::Literal(lit)] => {
                     Instruction::JumpPlusV0(lit.as_addr())
                 }

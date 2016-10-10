@@ -1,5 +1,5 @@
 
-use super::parse::*;
+use parse::*;
 
 use vm::instruction::Addr;
 use vm::instruction::Reg;
@@ -8,6 +8,8 @@ use vm::instruction::Imm4;
 use vm::instruction::Instruction;
 use vm::instruction::Fun;
 use super::vm;
+
+use std::collections::HashMap;
 
 impl LiteralValue {
     fn as_imm(&self) -> Imm {
@@ -24,22 +26,40 @@ impl LiteralValue {
 }
 
 pub fn translate(statements: Vec<Statement>) -> Box<[u8]> {
-    let mut instructions: Vec<vm::instruction::Instruction> = vec![];
+    let mut instruction_statements: Vec<(String, Vec<Operand>)> =
+        Vec::with_capacity(statements.len());
+    let mut label_map = HashMap::new();
+
     for statement in statements.into_iter() {
         match statement {
             Statement::Instruction(mnemonic, operands) => {
-                println!("mnemonic={:?} operands={:?}", mnemonic, operands);
-                let instruction = match_instruction(&mnemonic, operands);
-                instructions.push(instruction);
+                instruction_statements.push((mnemonic, operands));
             }
-            _ => {}
+            Statement::Label(label) => {
+                // Based on assumption that all instructions use two bytes.
+                let addr = Addr(0x200 + (instruction_statements.len() * 2) as u16);
+
+                if !label_map.contains_key(&label) {
+                    label_map.insert(label, addr);
+                } else {
+                    panic!("duplicate label: {}", label)
+                }
+            }
         }
     }
 
-    encode_instructions(instructions)
+    let instructions = instruction_statements.into_iter()
+        .map(|(mnemonic, operands)| match_instruction(&mnemonic, &operands, &label_map))
+        .collect::<Vec<_>>();
+
+    emit_instructions(instructions)
 }
 
-fn match_instruction(mnemonic: &str, operands: Vec<Operand>) -> vm::instruction::Instruction {
+fn match_instruction(mnemonic: &str,
+                     operands: &Vec<Operand>,
+                     label_map: &HashMap<String, Addr>)
+                     -> Instruction {
+    let resolve_label = |label: &String| *label_map.get(label).expect("Undefined label");
     let unsupported_operands =
         || format!("unsupported operands {:?} for {:?}", &operands, mnemonic);
 
@@ -49,21 +69,27 @@ fn match_instruction(mnemonic: &str, operands: Vec<Operand>) -> vm::instruction:
         "SYS" => {
             match &operands[..] {
                 &[Operand::Literal(lit)] => Instruction::Sys(lit.as_addr()),
+                &[Operand::Label(ref label)] => Instruction::Sys(resolve_label(label)),
                 _ => panic!(unsupported_operands()),
             }
         }
         "JP" => {
             match &operands[..] {
                 &[Operand::Literal(lit)] => Instruction::Jump(lit.as_addr()),
+                &[Operand::Label(ref label)] => Instruction::Jump(resolve_label(label)),
                 &[Operand::Register(Reg::V0), Operand::Literal(lit)] => {
                     Instruction::JumpPlusV0(lit.as_addr())
                 }
+                &[Operand::Register(Reg::V0), Operand::Label(ref label)] => {
+                    Instruction::JumpPlusV0(resolve_label(label))
+                } 
                 _ => panic!(unsupported_operands()),
             }
         }
         "CALL" => {
             match &operands[..] {
                 &[Operand::Literal(lit)] => Instruction::Call(lit.as_addr()),
+                &[Operand::Label(ref label)] => Instruction::Call(resolve_label(label)),
                 _ => panic!(unsupported_operands()),
             }
         }
@@ -121,6 +147,9 @@ fn match_instruction(mnemonic: &str, operands: Vec<Operand>) -> vm::instruction:
                     }
                 }
                 &[Operand::IndexReg, Operand::Literal(kk)] => Instruction::SetI(kk.as_addr()),
+                &[Operand::IndexReg, Operand::Label(ref label)] => {
+                    Instruction::SetI(resolve_label(label))
+                }
                 &[Operand::Register(vx), Operand::DT] => Instruction::GetDT(vx),
                 &[Operand::Register(vx), Operand::K] => Instruction::WaitKey(vx),
                 &[Operand::DT, Operand::Register(vx)] => Instruction::SetDT(vx),
@@ -285,7 +314,7 @@ fn match_instruction(mnemonic: &str, operands: Vec<Operand>) -> vm::instruction:
     }
 }
 
-fn encode_instructions(instructions: Vec<Instruction>) -> Box<[u8]> {
+fn emit_instructions(instructions: Vec<Instruction>) -> Box<[u8]> {
     instructions.into_iter()
         .flat_map::<Vec<u8>, _>(|instruction| {
             fn unpack_word(word: u16) -> Vec<u8> {
@@ -301,4 +330,22 @@ fn encode_instructions(instructions: Vec<Instruction>) -> Box<[u8]> {
         })
         .collect::<Vec<u8>>()
         .into_boxed_slice()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use parse::*;
+
+    #[test]
+    fn test_compile_label_forwad() {
+        let statements: Vec<Statement> = vec![Statement::Instruction("CALL".to_string(),
+                                                                     vec![Operand::Label("foo"
+                                                                              .to_string())]),
+                                              Statement::Label("foo".to_string()),
+                                              Statement::Instruction("RET".to_string(), vec![])];
+        let binary = translate(statements);
+
+        assert_eq!(binary, vec![0x22, 0x02, 0x00, 0xEE].into_boxed_slice());
+    }
 }

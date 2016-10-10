@@ -42,7 +42,7 @@ impl InstructionWord {
     }
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq)]
 pub struct Addr(pub u16); // TODO: Only & 0x0FFF
 
 #[derive(Debug, Copy, Clone, PartialEq)]
@@ -150,7 +150,7 @@ pub enum Instruction {
     /// 1nnn - JP addr
     Jump(Addr),
 
-    // 2nnn - CALL addr
+    /// 2nnn - CALL addr
     Call(Addr),
 
     /// 3xkk - SE Vx, byte
@@ -397,7 +397,7 @@ impl Instruction {
                 } else {
                     0x00A1
                 };
-                0xE000 | vx.encode_as_vx() | sub_op 
+                0xE000 | vx.encode_as_vx() | sub_op
             }
             GetDT(vx) => 0xF000 | vx.encode_as_vx() | 0x0007,
             WaitKey(vx) => 0xF000 | vx.encode_as_vx() | 0x000A,

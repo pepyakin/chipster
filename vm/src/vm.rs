@@ -41,11 +41,13 @@ impl Chip8 {
         chip8
     }
 
-    pub fn with_rom(rom_data: Vec<u8>) -> Chip8 {
-        let mut chip8 = Chip8::new();
+    pub fn with_rom(rom_data: &[u8]) -> Chip8 {
+        use std::io::Write;
 
-        for (i, octet) in rom_data.iter().enumerate() {
-            chip8.memory[0x200 + i] = *octet;
+        let mut chip8 = Chip8::new();
+        {
+            let mut rom_start = &mut chip8.memory[0x200..];
+            rom_start.write_all(rom_data);
         }
 
         chip8

@@ -86,7 +86,7 @@ fn read_rom<P: AsRef<Path>>(path: P) -> Result<Vec<u8>, io::Error> {
 
 fn prepare_chip8_vm(rom_file_name: &str) -> Chip8 {
     let rom_data = read_rom(rom_file_name).expect("failed to read rom");
-    Chip8::with_rom(rom_data)
+    Chip8::with_rom(&rom_data)
 }
 
 impl<'a> App<'a> {

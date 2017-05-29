@@ -32,14 +32,14 @@ impl Stack {
 
 impl fmt::Debug for Stack {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        try!(writeln!(f, "Stack {{"));
-        try!(writeln!(f, "["));
+        writeln!(f, "Stack {{")?;
+        writeln!(f, "[")?;
         for i in 0..(self.sp + 1) {
-            try!(writeln!(f, "    {:01x}: {:04x}", i, self.frames[i as usize]));
+            writeln!(f, "    {:01x}: {:04x}", i, self.frames[i as usize])?;
         }
-        try!(writeln!(f, "]"));
-        try!(writeln!(f, "  SP: {:04x} ({})", self.sp, self.sp));
-        try!(writeln!(f, "}}"));
+        writeln!(f, "]")?;
+        writeln!(f, "  SP: {:04x} ({})", self.sp, self.sp)?;
+        writeln!(f, "}}")?;
 
         Ok(())
     }

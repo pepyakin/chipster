@@ -78,9 +78,9 @@ struct App<'a> {
 fn read_rom<P: AsRef<Path>>(path: P) -> Result<Box<[u8]>, io::Error> {
     use std::io::Read;
 
-    let mut bin_file = try!(File::open(path));
+    let mut bin_file = File::open(path)?;
     let mut bin_buffer = Vec::new();
-    try!(bin_file.read_to_end(&mut bin_buffer));
+    bin_file.read_to_end(&mut bin_buffer)?;
     Ok(bin_buffer.into_boxed_slice())
 }
 

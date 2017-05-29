@@ -24,7 +24,7 @@ pub struct Chip8 {
 impl Chip8 {
     pub fn new() -> Chip8 {
         let mut chip8 = Chip8 {
-            memory: [0; 4096], // TODO: beware this stuff is going to be allocated on the stack
+            memory: [0; 4096],
             gpr: RegFile::new(),
             stack: Stack::new(),
             pc: 0x200,
@@ -35,9 +35,11 @@ impl Chip8 {
             keyboard: [0; 16],
         };
 
-        for i in 0..80 {
-            chip8.memory[i] = FONT_SPRITES[i];
+        {
+            let font_memory = &mut chip8.memory[0..80];
+            font_memory.copy_from_slice(&FONT_SPRITES);
         }
+
         chip8
     }
 

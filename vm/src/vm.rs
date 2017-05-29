@@ -66,7 +66,7 @@ impl Chip8 {
         self.pc = next_pc;
     }
 
-    pub fn update_timers(&mut self, dt: f64) {
+    pub fn update_timers(&mut self, dt: u8) {
         self.dt.step(dt);
         self.st.step(dt);
     }

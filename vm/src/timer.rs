@@ -1,23 +1,22 @@
-const TIMER_TICK_DURATION: f64 = 1.0 / 60.0;
 
 pub struct Timer {
-    left: f64,
+    left: u8,
 }
 
 impl Timer {
     pub fn new() -> Timer {
-        Timer { left: 0f64 }
+        Timer { left: 0 }
     }
 
-    pub fn step(&mut self, dt: f64) {
-        self.left = (0f64).max(self.left - dt);
+    pub fn step(&mut self, dt: u8) {
+        self.left = self.left.checked_sub(dt).unwrap_or(0);
     }
 
     pub fn get(&self) -> u8 {
-        (self.left / TIMER_TICK_DURATION) as u8
+        self.left
     }
 
     pub fn set(&mut self, ticks: u8) {
-        self.left = ticks as f64 * TIMER_TICK_DURATION;
+        self.left = ticks
     }
 }

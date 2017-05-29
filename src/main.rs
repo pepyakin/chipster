@@ -71,6 +71,7 @@ fn main() {
 struct App<'a> {
     command_args: CommandArgs,
     chip8: Chip8,
+    passed_dt: f64,
     paused: bool,
     beeper: audio::Beeper<'a>,
 }
@@ -96,6 +97,7 @@ impl<'a> App<'a> {
         App {
             command_args: command_args,
             chip8: chip8,
+            passed_dt: 0f64,
             paused: false,
             beeper: beeper,
         }
@@ -131,6 +133,8 @@ impl<'a> App<'a> {
     }
 
     fn update(&mut self, e: &Event) {
+        const TIMER_TICK_DURATION: f64 = 1.0 / 60.0;
+
         if let Some(args) = e.update_args() {
             // See "Secrets of emulation" chapter
             // in https://github.com/AfBu/haxe-chip-8-emulator/wiki/(Super)CHIP-8-Secrets
@@ -139,17 +143,25 @@ impl<'a> App<'a> {
             let dt = args.dt;
             let cycles_to_perform =
                 (dt * self.command_args.cycles_per_second as f64).floor() as usize;
-            let dt_per_cycle = dt / cycles_to_perform as f64;
+            let dt_per_cycle = (dt / cycles_to_perform as f64);
             println!("dt={}, dt_per_cycle={}, cycles_to_perform={}",
                      dt,
                      dt_per_cycle,
                      cycles_to_perform);
 
             for _cycle_number in 0..cycles_to_perform {
-                // println!("{}/{}", cycle_number, cycles_to_perform);
+                println!("{}/{}", _cycle_number, cycles_to_perform);
 
                 self.chip8.cycle();
-                self.chip8.update_timers(dt_per_cycle);
+
+                self.passed_dt += dt_per_cycle;
+                if (self.passed_dt > TIMER_TICK_DURATION) {
+                    let ticks_passed = (self.passed_dt / TIMER_TICK_DURATION) as u8;
+                    self.passed_dt -= (ticks_passed as f64 * TIMER_TICK_DURATION);
+
+                    println!("updating {} ticks", ticks_passed);
+                    self.chip8.update_timers(ticks_passed);
+                }
             }
 
             self.beeper.set_started(self.chip8.is_beeping());

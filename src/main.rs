@@ -1,8 +1,9 @@
 extern crate portaudio;
 extern crate piston_window;
 extern crate clap;
-
-extern crate vm;
+#[macro_use] 
+extern crate error_chain;
+extern crate chip8;
 
 use piston_window::*;
 
@@ -11,7 +12,17 @@ mod audio;
 use std::path::Path;
 use std::io;
 use std::fs::File;
-use vm::Chip8;
+use chip8::Chip8;
+
+error_chain! {
+    links {
+        Chip8Error(chip8::Error, chip8::ErrorKind);
+    }
+
+    foreign_links {
+        Io(io::Error);
+    }
+}
 
 struct CommandArgs {
     rom_file_name: String,
@@ -59,14 +70,14 @@ fn build_window() -> PistonWindow {
     window
 }
 
-fn main() {
+quick_main!(|| -> Result<()> {
     let args = CommandArgs::parse();
     let mut beeper_factory = audio::BeeperFactory::new();
-    let app = App::new(args, beeper_factory.create_beeper());
+    let app = App::new(args, beeper_factory.create_beeper())?;
     let piston_window = build_window();
 
-    app.run(piston_window);
-}
+    app.run(piston_window)
+});
 
 struct App<'a> {
     command_args: CommandArgs,
@@ -76,7 +87,7 @@ struct App<'a> {
     beeper: audio::Beeper<'a>,
 }
 
-fn read_rom<P: AsRef<Path>>(path: P) -> Result<Vec<u8>, io::Error> {
+fn read_rom<P: AsRef<Path>>(path: P) -> Result<Vec<u8>> {
     use std::io::Read;
 
     let mut rom_file = File::open(path)?;
@@ -85,25 +96,25 @@ fn read_rom<P: AsRef<Path>>(path: P) -> Result<Vec<u8>, io::Error> {
     Ok(rom_buffer)
 }
 
-fn prepare_chip8_vm(rom_file_name: &str) -> Chip8 {
-    let rom_data = read_rom(rom_file_name).expect("failed to read rom");
-    Chip8::with_rom(&rom_data)
+fn prepare_chip8_vm(rom_file_name: &str) -> Result<Chip8> {
+    let rom_data = read_rom(rom_file_name)?;
+    Ok(Chip8::with_rom(&rom_data))
 }
 
 impl<'a> App<'a> {
-    fn new(command_args: CommandArgs, beeper: audio::Beeper<'a>) -> App<'a> {
-        let chip8 = prepare_chip8_vm(&command_args.rom_file_name);
+    fn new(command_args: CommandArgs, beeper: audio::Beeper<'a>) -> Result<App<'a>> {
+        let chip8 = prepare_chip8_vm(&command_args.rom_file_name)?;
 
-        App {
+        Ok(App {
             command_args: command_args,
             chip8: chip8,
             passed_dt: 0f64,
             paused: false,
             beeper: beeper,
-        }
+        })
     }
 
-    fn run(mut self, mut window: PistonWindow) {
+    fn run(mut self, mut window: PistonWindow) -> Result<()> {
         while let Some(e) = window.next() {
             if Some(Button::Keyboard(Key::Space)) == e.release_args() {
                 self.paused = !self.paused;
@@ -114,9 +125,11 @@ impl<'a> App<'a> {
             }
 
             self.handle_input(&e);
-            self.update(&e);
+            self.update(&e)?;
             self.render(&e, &mut window);
         }
+
+        Ok(())
     }
 
     fn handle_input(&mut self, e: &Event) {
@@ -132,7 +145,7 @@ impl<'a> App<'a> {
         }
     }
 
-    fn update(&mut self, e: &Event) {
+    fn update(&mut self, e: &Event) -> Result<()> {
         const TIMER_TICK_DURATION: f64 = 1.0 / 60.0;
 
         if let Some(args) = e.update_args() {
@@ -143,7 +156,7 @@ impl<'a> App<'a> {
             let dt = args.dt;
             let cycles_to_perform =
                 (dt * self.command_args.cycles_per_second as f64).floor() as usize;
-            let dt_per_cycle = (dt / cycles_to_perform as f64);
+            let dt_per_cycle = dt / cycles_to_perform as f64;
             println!("dt={}, dt_per_cycle={}, cycles_to_perform={}",
                      dt,
                      dt_per_cycle,
@@ -152,12 +165,12 @@ impl<'a> App<'a> {
             for _cycle_number in 0..cycles_to_perform {
                 println!("{}/{}", _cycle_number, cycles_to_perform);
 
-                self.chip8.cycle();
+                self.chip8.cycle()?;
 
                 self.passed_dt += dt_per_cycle;
-                if (self.passed_dt > TIMER_TICK_DURATION) {
+                if self.passed_dt > TIMER_TICK_DURATION {
                     let ticks_passed = (self.passed_dt / TIMER_TICK_DURATION) as u8;
-                    self.passed_dt -= (ticks_passed as f64 * TIMER_TICK_DURATION);
+                    self.passed_dt -= ticks_passed as f64 * TIMER_TICK_DURATION;
 
                     println!("updating {} ticks", ticks_passed);
                     self.chip8.update_timers(ticks_passed);
@@ -166,6 +179,8 @@ impl<'a> App<'a> {
 
             self.beeper.set_started(self.chip8.is_beeping());
         }
+
+        Ok(())
     }
 
     fn render(&mut self, e: &Event, window: &mut PistonWindow) {

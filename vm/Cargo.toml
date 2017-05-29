@@ -1,5 +1,5 @@
 [package]
-name = "vm"
+name = "chip8"
 version = "0.1.0"
 authors = ["Sergey Pepyakin <s.pepyakin@gmail.com>"]
 
@@ -9,3 +9,4 @@ authors = ["Sergey Pepyakin <s.pepyakin@gmail.com>"]
 rand = "0.3"
 byteorder = "0.5"
 enum_primitive = "*"
+error-chain = "0.10.0"

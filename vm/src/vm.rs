@@ -49,21 +49,23 @@ impl Chip8 {
         let mut chip8 = Chip8::new();
         {
             let mut rom_start = &mut chip8.memory[0x200..];
-            rom_start.write_all(rom_data);
+            rom_start.write_all(rom_data).expect("write should succeed");
         }
 
         chip8
     }
 
-    pub fn cycle(&mut self) {
+    pub fn cycle(&mut self) -> ::Result<()> {
         let instruction_word = {
             use byteorder::{ByteOrder, BigEndian};
             let actual_pc = self.pc as usize;
             InstructionWord(BigEndian::read_u16(&self.memory[actual_pc..]))
         };
-        let instruction = Instruction::decode(instruction_word);
+        let instruction = Instruction::decode(instruction_word)?;
         let next_pc = self.execute_instruction(instruction);
         self.pc = next_pc;
+
+        Ok(())
     }
 
     pub fn update_timers(&mut self, dt: u8) {

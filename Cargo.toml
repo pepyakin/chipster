@@ -11,5 +11,6 @@ authors = ["Sergey Pepyakin <s.pepyakin@gmail.com>"]
 portaudio = "0.6.4"
 piston_window = "0.47.0" 
 clap = "2.5.1"
-vm = { path = "vm" }
+chip8 = { path = "vm" }
 rustc-test = "0.1.3"
+error-chain = "0.10.0"

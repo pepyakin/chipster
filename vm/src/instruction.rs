@@ -1,4 +1,10 @@
 
+error_chain! {
+    errors {
+        UnrecognizedInstruction(iw: InstructionWord)
+    }
+}
+
 #[derive(Debug, Copy, Clone)]
 pub struct InstructionWord(pub u16);
 
@@ -88,7 +94,7 @@ pub enum Reg {
 impl Reg {
     pub fn from_index(index: u8) -> Reg {
         use enum_primitive::FromPrimitive;
-        Reg::from_u8(index).unwrap()
+        Reg::from_u8(index).expect("index should be between [0x00, 0x0F]")
     }
 
     pub fn index(self) -> u8 {
@@ -243,10 +249,10 @@ pub enum Instruction {
 }
 
 impl Instruction {
-    pub fn decode(iw: InstructionWord) -> Instruction {
+    pub fn decode(iw: InstructionWord) -> Result<Instruction> {
         use self::Instruction::*;
 
-        match iw.op() {
+        Ok(match iw.op() {
             0x0 => {
                 match iw.kk() {
                     0xE0 => ClearScreen,
@@ -303,7 +309,7 @@ impl Instruction {
                     f: {
                         use enum_primitive::FromPrimitive;
 
-                        Fun::from_u8(iw.n()).expect("unrecognized instruction")
+                        Fun::from_u8(iw.n()).ok_or(ErrorKind::UnrecognizedInstruction(iw))?
                     },
                 }
             }
@@ -336,7 +342,7 @@ impl Instruction {
                             inv: true,
                         }
                     }
-                    _ => panic!("unrecognized instruction {:?}", iw),
+                    _ => bail!(ErrorKind::UnrecognizedInstruction(iw)),
                 }
             }
             0xF => {
@@ -350,11 +356,11 @@ impl Instruction {
                     0x33 => StoreBCD(iw.x_reg()),
                     0x55 => StoreRegs(iw.x_reg()),
                     0x65 => LoadRegs(iw.x_reg()),
-                    _ => panic!("unrecognized instruction {:?}", iw),
+                    _ => bail!(ErrorKind::UnrecognizedInstruction(iw)),
                 }
             }
-            _ => panic!("unrecognized instruction {:?}", iw),
-        }
+            _ => bail!(ErrorKind::UnrecognizedInstruction(iw)),
+        })
     }
 
     pub fn encode(self) -> InstructionWord {

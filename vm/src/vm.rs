@@ -41,10 +41,10 @@ impl Chip8 {
         chip8
     }
 
-    pub fn with_bin(bin_data: Box<[u8]>) -> Chip8 {
+    pub fn with_rom(rom_data: Vec<u8>) -> Chip8 {
         let mut chip8 = Chip8::new();
 
-        for (i, octet) in bin_data.iter().enumerate() {
+        for (i, octet) in rom_data.iter().enumerate() {
             chip8.memory[0x200 + i] = *octet;
         }
 

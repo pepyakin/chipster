@@ -14,7 +14,7 @@ use std::fs::File;
 use vm::Chip8;
 
 struct CommandArgs {
-    bin_file_name: String,
+    rom_file_name: String,
     cycles_per_second: u32, // default: 500
 }
 
@@ -40,7 +40,7 @@ impl CommandArgs {
             .unwrap();
 
         CommandArgs {
-            bin_file_name: matches.value_of("ROM_FILE").unwrap().to_string(),
+            rom_file_name: matches.value_of("ROM_FILE").unwrap().to_string(),
             cycles_per_second: cps,
         }
     }
@@ -75,23 +75,23 @@ struct App<'a> {
     beeper: audio::Beeper<'a>,
 }
 
-fn read_rom<P: AsRef<Path>>(path: P) -> Result<Box<[u8]>, io::Error> {
+fn read_rom<P: AsRef<Path>>(path: P) -> Result<Vec<u8>, io::Error> {
     use std::io::Read;
 
-    let mut bin_file = File::open(path)?;
-    let mut bin_buffer = Vec::new();
-    bin_file.read_to_end(&mut bin_buffer)?;
-    Ok(bin_buffer.into_boxed_slice())
+    let mut rom_file = File::open(path)?;
+    let mut rom_buffer = Vec::new();
+    rom_file.read_to_end(&mut rom_buffer)?;
+    Ok(rom_buffer)
 }
 
 fn prepare_chip8_vm(rom_file_name: &str) -> Chip8 {
     let rom_data = read_rom(rom_file_name).expect("failed to read rom");
-    Chip8::with_bin(rom_data)
+    Chip8::with_rom(rom_data)
 }
 
 impl<'a> App<'a> {
     fn new(command_args: CommandArgs, beeper: audio::Beeper<'a>) -> App<'a> {
-        let chip8 = prepare_chip8_vm(&command_args.bin_file_name);
+        let chip8 = prepare_chip8_vm(&command_args.rom_file_name);
 
         App {
             command_args: command_args,

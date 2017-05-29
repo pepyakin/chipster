@@ -12,5 +12,4 @@ portaudio = "0.6.4"
 piston_window = "0.47.0" 
 clap = "2.5.1"
 vm = { path = "vm" }
-asm = { path = "asm" }
 rustc-test = "0.1.3"

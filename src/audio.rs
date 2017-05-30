@@ -16,15 +16,18 @@ impl BeeperFactory {
         Ok(BeeperFactory { portaudio: p })
     }
 
-    pub fn create_beeper(&mut self) -> ::Result<Beeper> {
-        Beeper::new(&mut self.portaudio)
+    pub fn with_beeper<F>(&mut self, f: F) -> ::Result<()> where F: FnOnce(&mut Beeper) -> ::Result<()> {
+        let mut beeper = Beeper::new(&mut self.portaudio)?;
+        f(&mut beeper)?;
+        beeper.close()?;
+
+        Ok(())
     }
 }
 
 pub struct Beeper<'a> {
     stream: stream::Stream<'a, stream::NonBlocking, stream::Output<f32>>,
     started: bool,
-    closed: bool,
 }
 
 impl<'a> Beeper<'a> {
@@ -62,12 +65,10 @@ impl<'a> Beeper<'a> {
         Ok(Beeper {
             stream: stream,
             started: false,
-            closed: false
         })
     }
 
     pub fn set_started(&mut self, started: bool) -> ::Result<()> {
-        assert!(!self.closed);
         if self.started != started {
             self.started = started;
             if started {
@@ -81,21 +82,11 @@ impl<'a> Beeper<'a> {
         Ok(())
     }
 
-    pub fn close(mut self) -> ::Result<()> {
-        assert!(!self.closed);
+    fn close(mut self) -> ::Result<()> {
         if self.started {
             self.stream.stop()?;
         }
         self.stream.close()?;
-        self.closed = true;
         Ok(())
     }
-}
-
-impl<'a> Drop for Beeper<'a> {
-     fn drop(&mut self) {
-         if !self.closed {
-             panic!("Beeper is dropped without being closed")
-         }
-     }
 }

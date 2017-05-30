@@ -75,15 +75,13 @@ quick_main!(|| -> Result<()> {
     let args = CommandArgs::parse();
 
     let mut beeper_factory = audio::BeeperFactory::new()?;
-    {
-        let mut beeper = beeper_factory.create_beeper()?;
-        {
-            let piston_window = build_window();
-            let app = App::new(args, &mut beeper)?;
-            app.run(piston_window)?;    
-        }
-        beeper.close()?;
-    }
+    beeper_factory.with_beeper(|mut beeper| {
+        let app = App::new(args, &mut beeper)?;
+        let piston_window = build_window();
+        app.run(piston_window)?;
+        Ok(())
+    })?;
+
     Ok(())
 });
 

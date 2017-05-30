@@ -183,7 +183,7 @@ impl<'a, 'b: 'a> App<'a, 'b> {
                 }
             }
 
-            self.beeper.set_started(self.chip8.is_beeping())?;
+            self.beeper.set_beeping(self.chip8.is_beeping())?;
         }
 
         Ok(())

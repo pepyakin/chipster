@@ -27,7 +27,7 @@ impl BeeperFactory {
 
 pub struct Beeper<'a> {
     stream: stream::Stream<'a, stream::NonBlocking, stream::Output<f32>>,
-    started: bool,
+    beeping: bool,
 }
 
 impl<'a> Beeper<'a> {
@@ -64,18 +64,16 @@ impl<'a> Beeper<'a> {
         let stream = p.open_non_blocking_stream(settings, callback)?;
         Ok(Beeper {
             stream: stream,
-            started: false,
+            beeping: false,
         })
     }
 
-    pub fn set_started(&mut self, started: bool) -> ::Result<()> {
-        if self.started != started {
-            self.started = started;
-            if started {
-                println!("starting stream");
+    pub fn set_beeping(&mut self, beeping: bool) -> ::Result<()> {
+        if self.beeping != beeping {
+            self.beeping = beeping;
+            if beeping {
                 self.stream.start()?;
             } else {
-                println!("stoping stream");
                 self.stream.stop()?;
             }
         }
@@ -83,7 +81,7 @@ impl<'a> Beeper<'a> {
     }
 
     fn close(mut self) -> ::Result<()> {
-        if self.started {
+        if self.beeping {
             self.stream.stop()?;
         }
         self.stream.close()?;

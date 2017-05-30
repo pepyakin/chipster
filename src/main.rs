@@ -7,7 +7,7 @@ extern crate chip8;
 
 use piston_window::*;
 
-mod audio;
+mod beep;
 
 use std::path::Path;
 use std::io;
@@ -74,7 +74,7 @@ fn build_window() -> PistonWindow {
 quick_main!(|| -> Result<()> {
     let args = CommandArgs::parse();
 
-    let mut beeper_factory = audio::BeeperFactory::new()?;
+    let mut beeper_factory = beep::BeeperFactory::new()?;
     beeper_factory.with_beeper(|mut beeper| {
         let app = App::new(args, &mut beeper)?;
         let piston_window = build_window();
@@ -90,7 +90,7 @@ struct App<'a, 'b: 'a> {
     chip8: Chip8,
     passed_dt: f64,
     paused: bool,
-    beeper: &'a mut audio::Beeper<'b>,
+    beeper: &'a mut beep::Beeper<'b>,
 }
 
 fn read_rom<P: AsRef<Path>>(path: P) -> Result<Vec<u8>> {
@@ -108,7 +108,7 @@ fn prepare_chip8_vm(rom_file_name: &str) -> Result<Chip8> {
 }
 
 impl<'a, 'b: 'a> App<'a, 'b> {
-    fn new(command_args: CommandArgs, beeper: &'a mut audio::Beeper<'b>) -> Result<App<'a, 'b>> {
+    fn new(command_args: CommandArgs, beeper: &'a mut beep::Beeper<'b>) -> Result<App<'a, 'b>> {
         let chip8 = prepare_chip8_vm(&command_args.rom_file_name)?;
 
         Ok(App {

@@ -11,12 +11,12 @@ pub struct BeeperFactory {
 }
 
 impl BeeperFactory {
-    pub fn new() -> BeeperFactory {
-        let p = portaudio::PortAudio::new().unwrap();
-        BeeperFactory { portaudio: p }
+    pub fn new() -> ::Result<BeeperFactory> {
+        let p = portaudio::PortAudio::new()?;
+        Ok(BeeperFactory { portaudio: p })
     }
 
-    pub fn create_beeper(&mut self) -> Beeper {
+    pub fn create_beeper(&mut self) -> ::Result<Beeper> {
         Beeper::new(&mut self.portaudio)
     }
 }
@@ -24,14 +24,14 @@ impl BeeperFactory {
 pub struct Beeper<'a> {
     stream: stream::Stream<'a, stream::NonBlocking, stream::Output<f32>>,
     started: bool,
+    closed: bool,
 }
 
 impl<'a> Beeper<'a> {
-    fn new(p: &'a mut portaudio::PortAudio) -> Beeper<'a> {
+    fn new(p: &'a mut portaudio::PortAudio) -> ::Result<Beeper<'a>> {
         use std::f64::consts::PI;
 
-        let settings = p.default_output_stream_settings(CHANNELS, SAMPLE_RATE, FRAMES_PER_BUFFER)
-            .unwrap();
+        let settings = p.default_output_stream_settings(CHANNELS, SAMPLE_RATE, FRAMES_PER_BUFFER)?;
 
         let mut sine = [0.0; TABLE_SIZE];
         for (i, item) in sine.iter_mut().enumerate().take(TABLE_SIZE) {
@@ -58,32 +58,44 @@ impl<'a> Beeper<'a> {
             portaudio::Continue
         };
 
-        let stream = p.open_non_blocking_stream(settings, callback).unwrap();
-        Beeper {
+        let stream = p.open_non_blocking_stream(settings, callback)?;
+        Ok(Beeper {
             stream: stream,
             started: false,
-        }
+            closed: false
+        })
     }
 
-    pub fn set_started(&mut self, started: bool) {
+    pub fn set_started(&mut self, started: bool) -> ::Result<()> {
+        assert!(!self.closed);
         if self.started != started {
             self.started = started;
             if started {
                 println!("starting stream");
-                self.stream.start();
+                self.stream.start()?;
             } else {
                 println!("stoping stream");
-                self.stream.stop();
+                self.stream.stop()?;
             }
         }
+        Ok(())
+    }
+
+    pub fn close(mut self) -> ::Result<()> {
+        assert!(!self.closed);
+        if self.started {
+            self.stream.stop()?;
+        }
+        self.stream.close()?;
+        self.closed = true;
+        Ok(())
     }
 }
 
 impl<'a> Drop for Beeper<'a> {
-    fn drop(&mut self) {
-        if self.started {
-            self.stream.stop();
-        }
-        self.stream.close();
-    }
+     fn drop(&mut self) {
+         if !self.closed {
+             panic!("Beeper is dropped without being closed")
+         }
+     }
 }

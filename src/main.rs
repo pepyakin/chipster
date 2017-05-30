@@ -21,6 +21,7 @@ error_chain! {
 
     foreign_links {
         Io(io::Error);
+        PortAudio(portaudio::Error);
     }
 }
 
@@ -72,19 +73,26 @@ fn build_window() -> PistonWindow {
 
 quick_main!(|| -> Result<()> {
     let args = CommandArgs::parse();
-    let mut beeper_factory = audio::BeeperFactory::new();
-    let app = App::new(args, beeper_factory.create_beeper())?;
-    let piston_window = build_window();
 
-    app.run(piston_window)
+    let mut beeper_factory = audio::BeeperFactory::new()?;
+    {
+        let mut beeper = beeper_factory.create_beeper()?;
+        {
+            let piston_window = build_window();
+            let app = App::new(args, &mut beeper)?;
+            app.run(piston_window)?;    
+        }
+        beeper.close()?;
+    }
+    Ok(())
 });
 
-struct App<'a> {
+struct App<'a, 'b: 'a> {
     command_args: CommandArgs,
     chip8: Chip8,
     passed_dt: f64,
     paused: bool,
-    beeper: audio::Beeper<'a>,
+    beeper: &'a mut audio::Beeper<'b>,
 }
 
 fn read_rom<P: AsRef<Path>>(path: P) -> Result<Vec<u8>> {
@@ -101,8 +109,8 @@ fn prepare_chip8_vm(rom_file_name: &str) -> Result<Chip8> {
     Ok(Chip8::with_rom(&rom_data))
 }
 
-impl<'a> App<'a> {
-    fn new(command_args: CommandArgs, beeper: audio::Beeper<'a>) -> Result<App<'a>> {
+impl<'a, 'b: 'a> App<'a, 'b> {
+    fn new(command_args: CommandArgs, beeper: &'a mut audio::Beeper<'b>) -> Result<App<'a, 'b>> {
         let chip8 = prepare_chip8_vm(&command_args.rom_file_name)?;
 
         Ok(App {
@@ -177,7 +185,7 @@ impl<'a> App<'a> {
                 }
             }
 
-            self.beeper.set_started(self.chip8.is_beeping());
+            self.beeper.set_started(self.chip8.is_beeping())?;
         }
 
         Ok(())

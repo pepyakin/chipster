@@ -1,5 +1,4 @@
 #!/bin/sh
 cargo test
-cargo test -p vm
-cargo test -p asm
+cargo test -p chip8
 

@@ -258,17 +258,14 @@ impl Chip8 {
 
 impl fmt::Debug for Chip8 {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        writeln!(f, "Chip8 {{")?;
-        for i in 0..16 {
-            writeln!(f, "  V{:0X}: {:02x}", i, self.gpr.read_at_index(i))?;
-        }
-        writeln!(f, "  PC: {:04x}", self.pc)?;
-        writeln!(f, "  I : {:04x}", self.i)?;
-        writeln!(f, "  stack: {:#?}", self.stack)?;
-        writeln!(f, "  DT: {:02x}", self.dt.get())?;
-        writeln!(f, "}}")?;
-
-        Ok(())
+        f.debug_struct("Chip8")
+            .field("gpr", &self.gpr)
+            .field("pc", &format!("{:04x}", self.pc))
+            .field("i", &format!("{:04x}", self.i))
+            .field("dt", &format!("{:02x}", self.dt.get()))
+            .field("st", &format!("{:02x}", self.st.get()))
+            .field("stack", &self.stack)
+            .finish()
     }
 }
 

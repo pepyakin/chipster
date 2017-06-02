@@ -1,4 +1,5 @@
 use std::ops::{Index, IndexMut};
+use std::fmt;
 use instruction::Reg;
 
 pub struct RegFile {
@@ -30,5 +31,17 @@ impl Index<Reg> for RegFile {
 impl IndexMut<Reg> for RegFile {
     fn index_mut(&mut self, index: Reg) -> &mut u8 {
         &mut self.gpr[index.index() as usize]
+    }
+}
+
+impl fmt::Debug for RegFile {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let mut dbg = f.debug_struct("RegFile");
+        for i in 0..16 {
+            let reg_name = format!("V{:0X}", i);
+            let reg_value = format!("{:02x}", self.read_at_index(i));
+            dbg.field(&reg_name, &reg_value);
+        }
+        dbg.finish()
     }
 }

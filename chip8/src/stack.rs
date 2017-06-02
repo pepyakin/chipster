@@ -32,15 +32,10 @@ impl Stack {
 
 impl fmt::Debug for Stack {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        writeln!(f, "Stack {{")?;
-        writeln!(f, "[")?;
-        for i in 0..(self.sp + 1) {
-            writeln!(f, "    {:01x}: {:04x}", i, self.frames[i as usize])?;
-        }
-        writeln!(f, "]")?;
-        writeln!(f, "  SP: {:04x} ({})", self.sp, self.sp)?;
-        writeln!(f, "}}")?;
-
-        Ok(())
+        let values = &self.frames[0..(self.sp + 1)];
+        f.debug_struct("Stack")
+            .field("values", &values)
+            .field("sp", &self.sp)
+            .finish()
     }
 }

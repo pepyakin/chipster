@@ -16,7 +16,9 @@ impl BeeperFactory {
         Ok(BeeperFactory { portaudio: p })
     }
 
-    pub fn with_beeper<F>(&mut self, f: F) -> ::Result<()> where F: FnOnce(&mut Beeper) -> ::Result<()> {
+    pub fn with_beeper<F>(&mut self, f: F) -> ::Result<()>
+        where F: FnOnce(&mut Beeper) -> ::Result<()>
+    {
         let mut beeper = Beeper::new(&mut self.portaudio)?;
         f(&mut beeper)?;
         beeper.close()?;
@@ -63,9 +65,9 @@ impl<'a> Beeper<'a> {
 
         let stream = p.open_non_blocking_stream(settings, callback)?;
         Ok(Beeper {
-            stream: stream,
-            beeping: false,
-        })
+               stream: stream,
+               beeping: false,
+           })
     }
 
     pub fn set_beeping(&mut self, beeping: bool) -> ::Result<()> {

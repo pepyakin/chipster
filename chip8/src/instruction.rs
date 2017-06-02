@@ -161,38 +161,20 @@ pub enum Instruction {
 
     /// 3xkk - SE Vx, byte
     /// 4xkk - SNE Vx, byte
-    SkipEqImm {
-        vx: Reg,
-        imm: Imm,
-        inv: bool,
-    },
+    SkipEqImm { vx: Reg, imm: Imm, inv: bool },
 
     /// 5xy0 - SE Vx, Vy
     /// 9xy0 - SNE Vx, Vy
-    SkipEqReg {
-        vx: Reg,
-        vy: Reg,
-        inv: bool,
-    },
+    SkipEqReg { vx: Reg, vy: Reg, inv: bool },
 
     /// 6xkk - LD Vx, byte
-    PutImm {
-        vx: Reg,
-        imm: Imm,
-    },
+    PutImm { vx: Reg, imm: Imm },
 
     /// 7xkk - ADD Vx, byte
-    AddImm {
-        vx: Reg,
-        imm: Imm,
-    },
+    AddImm { vx: Reg, imm: Imm },
 
     /// 8xyF, where F is function
-    Apply {
-        vx: Reg,
-        vy: Reg,
-        f: Fun,
-    },
+    Apply { vx: Reg, vy: Reg, f: Fun },
 
     /// Annn - LD I, addr
     SetI(Addr),
@@ -201,24 +183,14 @@ pub enum Instruction {
     JumpPlusV0(Addr),
 
     /// Cxkk - RND Vx, byte
-    Randomize {
-        vx: Reg,
-        imm: Imm,
-    },
+    Randomize { vx: Reg, imm: Imm },
 
     /// Dxyn - DRW Vx, Vy, nibble
-    Draw {
-        vx: Reg,
-        vy: Reg,
-        n: Imm4,
-    },
+    Draw { vx: Reg, vy: Reg, n: Imm4 },
 
     /// Ex9E - SKP Vx
     /// ExA1 - SKNP Vx
-    SkipPressed {
-        vx: Reg,
-        inv: bool,
-    },
+    SkipPressed { vx: Reg, inv: bool },
 
     /// Fx07 - LD Vx, DT
     GetDT(Reg),
@@ -252,7 +224,7 @@ impl Instruction {
     pub fn decode(iw: InstructionWord) -> Result<Instruction> {
         use self::Instruction::*;
 
-        Ok(match iw.op() {
+        let insn = match iw.op() {
             0x0 => {
                 match iw.kk() {
                     0xE0 => ClearScreen,
@@ -309,7 +281,8 @@ impl Instruction {
                     f: {
                         use enum_primitive::FromPrimitive;
 
-                        Fun::from_u8(iw.n()).ok_or(ErrorKind::UnrecognizedInstruction(iw))?
+                        Fun::from_u8(iw.n())
+                            .ok_or(ErrorKind::UnrecognizedInstruction(iw))?
                     },
                 }
             }
@@ -360,7 +333,8 @@ impl Instruction {
                 }
             }
             _ => bail!(ErrorKind::UnrecognizedInstruction(iw)),
-        })
+        };
+        Ok(insn)
     }
 
     pub fn encode(self) -> InstructionWord {
@@ -372,19 +346,11 @@ impl Instruction {
             Jump(addr) => 0x1000 | addr.0,
             Call(addr) => 0x2000 | addr.0,
             SkipEqImm { vx, imm, inv } => {
-                let opcode = if !inv {
-                    0x3000
-                } else {
-                    0x4000
-                };
+                let opcode = if !inv { 0x3000 } else { 0x4000 };
                 opcode | vx.encode_as_vx() | imm.encode_as_kk()
             }
             SkipEqReg { vx, vy, inv } => {
-                let opcode = if !inv {
-                    0x5000
-                } else {
-                    0x9000
-                };
+                let opcode = if !inv { 0x5000 } else { 0x9000 };
                 opcode | vx.encode_as_vx() | vy.encode_as_vy()
             }
             PutImm { vx, imm } => 0x6000 | vx.encode_as_vx() | imm.encode_as_kk(),
@@ -398,12 +364,8 @@ impl Instruction {
             Randomize { vx, imm } => 0xC000 | vx.encode_as_vx() | imm.encode_as_kk(),
             Draw { vx, vy, n } => 0xD000 | vx.encode_as_vx() | vy.encode_as_vy() | n.encode_as_n(),
             SkipPressed { vx, inv } => {
-                let sub_op = if !inv {
-                    0x009E
-                } else {
-                    0x00A1
-                };
-                0xE000 | vx.encode_as_vx() | sub_op 
+                let sub_op = if !inv { 0x009E } else { 0x00A1 };
+                0xE000 | vx.encode_as_vx() | sub_op
             }
             GetDT(vx) => 0xF000 | vx.encode_as_vx() | 0x0007,
             WaitKey(vx) => 0xF000 | vx.encode_as_vx() | 0x000A,

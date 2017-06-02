@@ -143,20 +143,12 @@ impl Chip8 {
                     Fun::Add => {
                         let (v, overflow) = x.overflowing_add(y);
                         self.gpr[vx] = v;
-                        self.gpr[Reg::Vf] = if overflow {
-                            1
-                        } else {
-                            0
-                        };
+                        self.gpr[Reg::Vf] = if overflow { 1 } else { 0 };
                     }
                     Fun::Subtract => {
                         let (v, borrow) = x.overflowing_sub(y);
                         self.gpr[vx] = v;
-                        self.gpr[Reg::Vf] = if borrow {
-                            0
-                        } else {
-                            1
-                        };
+                        self.gpr[Reg::Vf] = if borrow { 0 } else { 1 };
                     }
                     Fun::ShiftRight => {
                         self.gpr[vx] = y >> 1;
@@ -165,11 +157,7 @@ impl Chip8 {
                     Fun::SubtractInv => {
                         let (v, borrow) = y.overflowing_sub(x);
                         self.gpr[vx] = v;
-                        self.gpr[Reg::Vf] = if borrow {
-                            0
-                        } else {
-                            1
-                        };
+                        self.gpr[Reg::Vf] = if borrow { 0 } else { 1 };
                     }
                     Fun::ShiftLeft => {
                         self.gpr[vx] = y << 1;
@@ -199,11 +187,7 @@ impl Chip8 {
                     self.display.draw(x, y, sprite)
                 };
 
-                self.gpr[Reg::Vf] = if collision_bit {
-                    1
-                } else {
-                    0
-                };
+                self.gpr[Reg::Vf] = if collision_bit { 1 } else { 0 };
             }
             SkipPressed { vx, inv } => {
                 let x = self.gpr[vx] as usize;

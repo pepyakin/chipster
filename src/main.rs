@@ -1,7 +1,7 @@
 extern crate portaudio;
 extern crate piston_window;
 extern crate clap;
-#[macro_use] 
+#[macro_use]
 extern crate error_chain;
 extern crate chip8;
 
@@ -36,18 +36,19 @@ impl CommandArgs {
 
         let matches = App::new("chip8 emulator")
             .arg(Arg::with_name("ROM_FILE")
-                .help("rom file to load")
-                .required(true))
+                     .help("rom file to load")
+                     .required(true))
             .arg(Arg::with_name("cycles per second")
-                .short("c")
-                .long("cycles-per-sec")
-                .value_name("cycles_per_second")
-                .help("How many Chip8 cycles should be executed per second. Values between \
+                     .short("c")
+                     .long("cycles-per-sec")
+                     .value_name("cycles_per_second")
+                     .help("How many Chip8 cycles should be executed per second. Values between \
                        500-1000 should be fine.")
-                .takes_value(true))
+                     .takes_value(true))
             .get_matches();
 
-        let cps = matches.value_of("cycles per second")
+        let cps = matches
+            .value_of("cycles per second")
             .and_then(|s| s.parse::<u32>().ok())
             .unwrap();
 
@@ -60,10 +61,11 @@ impl CommandArgs {
 
 fn build_window() -> PistonWindow {
     let title = "Chip8";
-    let mut window: PistonWindow = WindowSettings::new(title, [640, 320])
-        .exit_on_esc(true)
-        .build()
-        .unwrap_or_else(|e| panic!("Failed to build PistonWindow: {}", e));
+    let mut window: PistonWindow =
+        WindowSettings::new(title, [640, 320])
+            .exit_on_esc(true)
+            .build()
+            .unwrap_or_else(|e| panic!("Failed to build PistonWindow: {}", e));
 
     window.set_swap_buffers(false);
     window.set_max_fps(60);
@@ -75,12 +77,13 @@ quick_main!(|| -> Result<()> {
     let args = CommandArgs::parse();
 
     let mut beeper_factory = beep::BeeperFactory::new()?;
-    beeper_factory.with_beeper(|mut beeper| {
-        let app = App::new(args, &mut beeper)?;
-        let piston_window = build_window();
-        app.run(piston_window)?;
-        Ok(())
-    })?;
+    beeper_factory
+        .with_beeper(|mut beeper| {
+                         let app = App::new(args, &mut beeper)?;
+                         let piston_window = build_window();
+                         app.run(piston_window)?;
+                         Ok(())
+                     })?;
 
     Ok(())
 });
@@ -112,12 +115,12 @@ impl<'a, 'b: 'a> App<'a, 'b> {
         let chip8 = prepare_chip8_vm(&command_args.rom_file_name)?;
 
         Ok(App {
-            command_args: command_args,
-            chip8: chip8,
-            passed_dt: 0f64,
-            paused: false,
-            beeper: beeper,
-        })
+               command_args: command_args,
+               chip8: chip8,
+               passed_dt: 0f64,
+               paused: false,
+               beeper: beeper,
+           })
     }
 
     fn run(mut self, mut window: PistonWindow) -> Result<()> {
@@ -160,8 +163,8 @@ impl<'a, 'b: 'a> App<'a, 'b> {
 
             // TODO: Test for low values.
             let dt = args.dt;
-            let cycles_to_perform =
-                (dt * self.command_args.cycles_per_second as f64).floor() as usize;
+            let cycles_to_perform = (dt * self.command_args.cycles_per_second as f64).floor() as
+                                    usize;
             let dt_per_cycle = dt / cycles_to_perform as f64;
             println!("dt={}, dt_per_cycle={}, cycles_to_perform={}",
                      dt,

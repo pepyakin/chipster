@@ -39,3 +39,22 @@ impl fmt::Debug for Stack {
             .finish()
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    #[should_panic]
+    fn pop_from_empty() {
+        let mut stack = Stack::new();
+        stack.pop();
+    }
+
+    #[test]
+    fn simple_push_pop() {
+        let mut stack = Stack::new();
+        stack.push(128);
+        assert_eq!(128, stack.pop());
+    }
+}

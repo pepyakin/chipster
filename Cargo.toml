@@ -1,16 +1,6 @@
-[package]
-name = "chipster"
-version = "0.1.0"
-authors = ["Sergey Pepyakin <s.pepyakin@gmail.com>"]
-
 # [[test]]
 # name = "chip8_suite"
 # harness = false
 
-[dependencies]
-portaudio = "0.6.4"
-piston_window = "0.47.0" 
-clap = "2.5.1"
-chip8 = { path = "chip8" }
-rustc-test = "0.1.3"
-error-chain = "0.10.0"
+[workspace]
+members = ["chipster", "chip8"]

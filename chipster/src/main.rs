@@ -8,6 +8,7 @@ extern crate chip8;
 use piston_window::*;
 
 mod beep;
+mod display;
 
 use std::path::Path;
 use std::io;
@@ -90,6 +91,7 @@ quick_main!(|| -> Result<()> {
 
 struct App<'a, 'b: 'a> {
     command_args: CommandArgs,
+    display: display::Display,
     chip8: Chip8,
     passed_dt: f64,
     paused: bool,
@@ -116,6 +118,7 @@ impl<'a, 'b: 'a> App<'a, 'b> {
 
         Ok(App {
                command_args: command_args,
+               display: display::Display::new(),
                chip8: chip8,
                passed_dt: 0f64,
                paused: false,
@@ -166,13 +169,13 @@ impl<'a, 'b: 'a> App<'a, 'b> {
             let cycles_to_perform = (dt * self.command_args.cycles_per_second as f64).floor() as
                                     usize;
             let dt_per_cycle = dt / cycles_to_perform as f64;
-            println!("dt={}, dt_per_cycle={}, cycles_to_perform={}",
-                     dt,
-                     dt_per_cycle,
-                     cycles_to_perform);
+            // println!("dt={}, dt_per_cycle={}, cycles_to_perform={}",
+            //          dt,
+            //          dt_per_cycle,
+            //          cycles_to_perform);
 
             for _cycle_number in 0..cycles_to_perform {
-                println!("{}/{}", _cycle_number, cycles_to_perform);
+                // println!("{}/{}", _cycle_number, cycles_to_perform);
 
                 self.chip8.cycle()?;
 
@@ -181,12 +184,13 @@ impl<'a, 'b: 'a> App<'a, 'b> {
                     let ticks_passed = (self.passed_dt / TIMER_TICK_DURATION) as u8;
                     self.passed_dt -= ticks_passed as f64 * TIMER_TICK_DURATION;
 
-                    println!("updating {} ticks", ticks_passed);
+                    // println!("updating {} ticks", ticks_passed);
                     self.chip8.update_timers(ticks_passed);
                 }
             }
 
             self.beeper.set_beeping(self.chip8.is_beeping())?;
+            self.display.update(&self.chip8.display, args.dt as f32);
         }
 
         Ok(())
@@ -196,7 +200,6 @@ impl<'a, 'b: 'a> App<'a, 'b> {
         if let Some(args) = e.render_args() {
             window.draw_2d(e, |c, g| {
                 let clear_color = [0.98, 0.95, 0.86, 1.0];
-                let solid_color = [0.02, 0.12, 0.15, 1.0];
 
                 clear(clear_color, g);
 
@@ -208,11 +211,14 @@ impl<'a, 'b: 'a> App<'a, 'b> {
                         let dx = x as f64 * w;
                         let dy = y as f64 * h;
 
-                        if self.chip8.display.get(x, y) != 0 {
-                            // let rect = [dx + w * 0.1, dy + h * 0.1, w * 0.9, h * 0.9];
-                            let rect = [dx, dy, w, h];
+                        match self.display.get_intensity(x, y) {
+                            intensity if intensity > 0.0 => {
+                                let rect = [dx, dy, w, h];
+                                let solid_color = [0.02, 0.12, 0.15, intensity];
 
-                            rectangle(solid_color, rect, c.transform, g);
+                                rectangle(solid_color, rect, c.transform, g);
+                            }
+                            _ => {},
                         }
                     }
                 }

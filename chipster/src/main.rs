@@ -6,13 +6,15 @@ extern crate error_chain;
 extern crate chip8;
 
 use piston_window::*;
+use piston_window::Input::*;
 
 mod beep;
-mod display;
+mod render;
 
 use std::path::Path;
 use std::io;
 use std::fs::File;
+use render::{RenderBuf, RenderBufDisplay};
 use chip8::Chip8;
 
 error_chain! {
@@ -48,11 +50,11 @@ impl CommandArgs {
                        500-1000 should be fine.")
                      .takes_value(true))
             .arg(Arg::with_name("pixel decay time")
-                    .short("d")
-                    .long("pixel-decay-time")
-                    .value_name("pixel_decay_time")
-                    .help("How many seconds takes for pixel from lit to non-lit")
-                    .takes_value(true))
+                     .short("d")
+                     .long("pixel-decay-time")
+                     .value_name("pixel_decay_time")
+                     .help("How many seconds takes for pixel from lit to non-lit")
+                     .takes_value(true))
             .get_matches();
 
         let cycles_per_second = matches
@@ -68,7 +70,7 @@ impl CommandArgs {
         CommandArgs {
             rom_file_name: matches.value_of("ROM_FILE").unwrap().to_string(),
             cycles_per_second,
-            pixel_decay_time
+            pixel_decay_time,
         }
     }
 }
@@ -104,8 +106,8 @@ quick_main!(|| -> Result<()> {
 
 struct App<'a, 'b: 'a> {
     command_args: &'a CommandArgs,
-    display: display::Display,
-    chip8: Chip8,
+    render_buf: RenderBuf,
+    chip8: Chip8<RenderBufDisplay>,
     passed_dt: f64,
     paused: bool,
     beeper: &'a mut beep::Beeper<'b>,
@@ -120,18 +122,17 @@ fn read_rom<P: AsRef<Path>>(path: P) -> Result<Vec<u8>> {
     Ok(rom_buffer)
 }
 
-fn prepare_chip8_vm(rom_file_name: &str) -> Result<Chip8> {
-    let rom_data = read_rom(rom_file_name)?;
-    Ok(Chip8::with_rom(&rom_data))
-}
-
 impl<'a, 'b: 'a, 'c> App<'a, 'b> {
     fn new(command_args: &'a CommandArgs, beeper: &'a mut beep::Beeper<'b>) -> Result<App<'a, 'b>> {
-        let chip8 = prepare_chip8_vm(&command_args.rom_file_name)?;
+        let render_buf = RenderBuf::new(command_args.pixel_decay_time);
+        let display = render_buf.display();
+
+        let rom_data = read_rom(&command_args.rom_file_name)?;
+        let chip8 = Chip8::with_rom(&rom_data, display);
 
         Ok(App {
                command_args: command_args,
-               display: display::Display::new(command_args.pixel_decay_time),
+               render_buf: render_buf,
                chip8: chip8,
                passed_dt: 0f64,
                paused: false,
@@ -141,7 +142,7 @@ impl<'a, 'b: 'a, 'c> App<'a, 'b> {
 
     fn run(mut self, mut window: PistonWindow) -> Result<()> {
         while let Some(e) = window.next() {
-            if Some(Button::Keyboard(Key::Space)) == e.release_args() {
+            if Release(Button::Keyboard(Key::Space)) == e {
                 self.paused = !self.paused;
             }
 
@@ -149,95 +150,93 @@ impl<'a, 'b: 'a, 'c> App<'a, 'b> {
                 continue;
             }
 
-            self.handle_input(&e);
-            self.update(&e)?;
-            self.render(&e, &mut window);
-        }
-
-        Ok(())
-    }
-
-    fn handle_input(&mut self, e: &Event) {
-        if let Some(button) = e.press_args() {
-            if let Some(pressed_key) = map_keycode(button) {
-                self.chip8.keyboard[pressed_key] = 1;
-            }
-        }
-        if let Some(button) = e.release_args() {
-            if let Some(released_key) = map_keycode(button) {
-                self.chip8.keyboard[released_key] = 0;
-            }
-        }
-    }
-
-    fn update(&mut self, e: &Event) -> Result<()> {
-        const TIMER_TICK_DURATION: f64 = 1.0 / 60.0;
-
-        if let Some(args) = e.update_args() {
-            // See "Secrets of emulation" chapter
-            // in https://github.com/AfBu/haxe-chip-8-emulator/wiki/(Super)CHIP-8-Secrets
-
-            // TODO: Test for low values.
-            let dt = args.dt;
-            let cycles_to_perform = (dt * self.command_args.cycles_per_second as f64).floor() as
-                                    usize;
-            let dt_per_cycle = dt / cycles_to_perform as f64;
-            // println!("dt={}, dt_per_cycle={}, cycles_to_perform={}",
-            //          dt,
-            //          dt_per_cycle,
-            //          cycles_to_perform);
-
-            for _cycle_number in 0..cycles_to_perform {
-                // println!("{}/{}", _cycle_number, cycles_to_perform);
-
-                self.chip8.cycle()?;
-
-                self.passed_dt += dt_per_cycle;
-                if self.passed_dt > TIMER_TICK_DURATION {
-                    let ticks_passed = (self.passed_dt / TIMER_TICK_DURATION) as u8;
-                    self.passed_dt -= ticks_passed as f64 * TIMER_TICK_DURATION;
-
-                    // println!("updating {} ticks", ticks_passed);
-                    self.chip8.update_timers(ticks_passed);
-                }
-            }
-
-            self.beeper.set_beeping(self.chip8.is_beeping())?;
-            self.display.update(&self.chip8.display, args.dt as f32);
-        }
-
-        Ok(())
-    }
-
-    fn render(&mut self, e: &Event, window: &mut PistonWindow) {
-        if let Some(args) = e.render_args() {
-            window.draw_2d(e, |c, g| {
-                let clear_color = [0.98, 0.95, 0.86, 1.0];
-
-                clear(clear_color, g);
-
-                let w = args.width as f64 / 64.0;
-                let h = args.height as f64 / 32.0;
-
-                for y in 0..32 {
-                    for x in 0..64 {
-                        let dx = x as f64 * w;
-                        let dy = y as f64 * h;
-
-                        match self.display.get_intensity(x, y) {
-                            intensity if intensity > 0.0 => {
-                                let rect = [dx, dy, w, h];
-                                let solid_color = [0.02, 0.12, 0.15, intensity];
-
-                                rectangle(solid_color, rect, c.transform, g);
-                            }
-                            _ => {}
-                        }
+            match e {
+                Press(button) => {
+                    if let Some(pressed_key) = map_keycode(button) {
+                        self.chip8.keyboard[pressed_key] = 1;
                     }
                 }
-            });
-            Window::swap_buffers(window);
+                Release(button) => {
+                    if let Some(released_key) = map_keycode(button) {
+                        self.chip8.keyboard[released_key] = 0;
+                    }
+                }
+                Update(update_args) => {
+                    self.update(update_args)?;
+                }
+                Render(render_args) => {
+                    self.render(&e, render_args, &mut window);
+                }
+                _ => {}
+            }
         }
+
+        Ok(())
+    }
+
+    fn update(&mut self, args: UpdateArgs) -> Result<()> {
+        const TIMER_TICK_DURATION: f64 = 1.0 / 60.0;
+
+        // See "Secrets of emulation" chapter
+        // in https://github.com/AfBu/haxe-chip-8-emulator/wiki/(Super)CHIP-8-Secrets
+
+        // TODO: Test for low values.
+        let dt = args.dt;
+        let cycles_to_perform = (dt * self.command_args.cycles_per_second as f64).floor() as usize;
+        let dt_per_cycle = dt / cycles_to_perform as f64;
+        // println!("dt={}, dt_per_cycle={}, cycles_to_perform={}",
+        //          dt,
+        //          dt_per_cycle,
+        //          cycles_to_perform);
+
+        for _cycle_number in 0..cycles_to_perform {
+            // println!("{}/{}", _cycle_number, cycles_to_perform);
+
+            self.chip8.cycle()?;
+
+            self.passed_dt += dt_per_cycle;
+            if self.passed_dt > TIMER_TICK_DURATION {
+                let ticks_passed = (self.passed_dt / TIMER_TICK_DURATION) as u8;
+                self.passed_dt -= ticks_passed as f64 * TIMER_TICK_DURATION;
+
+                // println!("updating {} ticks", ticks_passed);
+                self.chip8.update_timers(ticks_passed);
+            }
+        }
+
+        self.beeper.set_beeping(self.chip8.is_beeping())?;
+        self.render_buf.update(args.dt as f32);
+
+        Ok(())
+    }
+
+    fn render(&mut self, e: &Input, args: RenderArgs, window: &mut PistonWindow) {
+        window.draw_2d(e, |c, g| {
+            let clear_color = [0.98, 0.95, 0.86, 1.0];
+
+            clear(clear_color, g);
+
+            let w = args.width as f64 / 64.0;
+            let h = args.height as f64 / 32.0;
+
+            for y in 0..32 {
+                for x in 0..64 {
+                    let dx = x as f64 * w;
+                    let dy = y as f64 * h;
+
+                    match self.render_buf.get_intensity(x, y) {
+                        intensity if intensity > 0.0 => {
+                            let rect = [dx, dy, w, h];
+                            let solid_color = [0.02, 0.12, 0.15, intensity];
+
+                            rectangle(solid_color, rect, c.transform, g);
+                        }
+                        _ => {}
+                    }
+                }
+            }
+        });
+        Window::swap_buffers(window);
     }
 }
 

@@ -7,6 +7,6 @@ authors = ["Sergey Pepyakin <s.pepyakin@gmail.com>"]
 chip8 = { path = "../chip8" }
 error-chain = "0.10.0"
 portaudio = "0.6.4"
-piston_window = "0.47.0" 
+piston_window = "0.*" 
 clap = "2.5.1"
 rustc-test = "0.1.3"

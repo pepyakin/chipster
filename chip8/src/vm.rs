@@ -5,11 +5,11 @@ use rand;
 
 use stack::Stack;
 use timer;
-use display;
 use instruction::*;
 use regfile::RegFile;
+use display::Display;
 
-pub struct Chip8 {
+pub struct Chip8<D: Display> {
     memory: [u8; 4096],
     gpr: RegFile,
     stack: Stack,
@@ -17,12 +17,12 @@ pub struct Chip8 {
     i: u16,
     dt: timer::Timer,
     st: timer::Timer,
-    pub display: display::Display,
+    pub display: D,
     pub keyboard: [u8; 16],
 }
 
-impl Chip8 {
-    pub fn new() -> Chip8 {
+impl<D: Display> Chip8<D> {
+    pub fn new(display: D) -> Chip8<D> {
         let mut chip8 = Chip8 {
             memory: [0; 4096],
             gpr: RegFile::new(),
@@ -31,7 +31,7 @@ impl Chip8 {
             i: 0, // TODO: Initial value?
             dt: timer::Timer::new(),
             st: timer::Timer::new(),
-            display: display::Display::new(),
+            display: display,
             keyboard: [0; 16],
         };
 
@@ -43,10 +43,10 @@ impl Chip8 {
         chip8
     }
 
-    pub fn with_rom(rom_data: &[u8]) -> Chip8 {
+    pub fn with_rom(rom_data: &[u8], display: D) -> Chip8<D> {
         use std::io::Write;
 
-        let mut chip8 = Chip8::new();
+        let mut chip8 = Chip8::new(display);
         {
             let mut rom_start = &mut chip8.memory[0x200..];
             rom_start.write_all(rom_data).expect("write should succeed");
@@ -256,7 +256,7 @@ impl Chip8 {
     }
 }
 
-impl fmt::Debug for Chip8 {
+impl<D: Display> fmt::Debug for Chip8<D> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         f.debug_struct("Chip8")
             .field("gpr", &self.gpr)

@@ -218,7 +218,7 @@ impl<'a, 'b: 'a> App<'a, 'b> {
 
                                 rectangle(solid_color, rect, c.transform, g);
                             }
-                            _ => {},
+                            _ => {}
                         }
                     }
                 }

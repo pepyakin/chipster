@@ -8,6 +8,7 @@ extern crate chip8;
 use piston_window::*;
 
 mod beep;
+mod display;
 
 use std::path::Path;
 use std::io;
@@ -28,6 +29,7 @@ error_chain! {
 struct CommandArgs {
     rom_file_name: String,
     cycles_per_second: u32, // default: 500
+    pixel_decay_time: f32,
 }
 
 impl CommandArgs {
@@ -45,16 +47,28 @@ impl CommandArgs {
                      .help("How many Chip8 cycles should be executed per second. Values between \
                        500-1000 should be fine.")
                      .takes_value(true))
+            .arg(Arg::with_name("pixel decay time")
+                    .short("d")
+                    .long("pixel-decay-time")
+                    .value_name("pixel_decay_time")
+                    .help("How many seconds takes for pixel from lit to non-lit")
+                    .takes_value(true))
             .get_matches();
 
-        let cps = matches
+        let cycles_per_second = matches
             .value_of("cycles per second")
             .and_then(|s| s.parse::<u32>().ok())
-            .unwrap();
+            .unwrap_or(500);
+
+        let pixel_decay_time = matches
+            .value_of("pixel decay time")
+            .and_then(|s| s.parse::<f32>().ok())
+            .unwrap_or(0.3);
 
         CommandArgs {
             rom_file_name: matches.value_of("ROM_FILE").unwrap().to_string(),
-            cycles_per_second: cps,
+            cycles_per_second,
+            pixel_decay_time
         }
     }
 }
@@ -79,7 +93,7 @@ quick_main!(|| -> Result<()> {
     let mut beeper_factory = beep::BeeperFactory::new()?;
     beeper_factory
         .with_beeper(|mut beeper| {
-                         let app = App::new(args, &mut beeper)?;
+                         let app = App::new(&args, &mut beeper)?;
                          let piston_window = build_window();
                          app.run(piston_window)?;
                          Ok(())
@@ -89,7 +103,8 @@ quick_main!(|| -> Result<()> {
 });
 
 struct App<'a, 'b: 'a> {
-    command_args: CommandArgs,
+    command_args: &'a CommandArgs,
+    display: display::Display,
     chip8: Chip8,
     passed_dt: f64,
     paused: bool,
@@ -110,12 +125,13 @@ fn prepare_chip8_vm(rom_file_name: &str) -> Result<Chip8> {
     Ok(Chip8::with_rom(&rom_data))
 }
 
-impl<'a, 'b: 'a> App<'a, 'b> {
-    fn new(command_args: CommandArgs, beeper: &'a mut beep::Beeper<'b>) -> Result<App<'a, 'b>> {
+impl<'a, 'b: 'a, 'c> App<'a, 'b> {
+    fn new(command_args: &'a CommandArgs, beeper: &'a mut beep::Beeper<'b>) -> Result<App<'a, 'b>> {
         let chip8 = prepare_chip8_vm(&command_args.rom_file_name)?;
 
         Ok(App {
                command_args: command_args,
+               display: display::Display::new(command_args.pixel_decay_time),
                chip8: chip8,
                passed_dt: 0f64,
                paused: false,
@@ -166,13 +182,13 @@ impl<'a, 'b: 'a> App<'a, 'b> {
             let cycles_to_perform = (dt * self.command_args.cycles_per_second as f64).floor() as
                                     usize;
             let dt_per_cycle = dt / cycles_to_perform as f64;
-            println!("dt={}, dt_per_cycle={}, cycles_to_perform={}",
-                     dt,
-                     dt_per_cycle,
-                     cycles_to_perform);
+            // println!("dt={}, dt_per_cycle={}, cycles_to_perform={}",
+            //          dt,
+            //          dt_per_cycle,
+            //          cycles_to_perform);
 
             for _cycle_number in 0..cycles_to_perform {
-                println!("{}/{}", _cycle_number, cycles_to_perform);
+                // println!("{}/{}", _cycle_number, cycles_to_perform);
 
                 self.chip8.cycle()?;
 
@@ -181,12 +197,13 @@ impl<'a, 'b: 'a> App<'a, 'b> {
                     let ticks_passed = (self.passed_dt / TIMER_TICK_DURATION) as u8;
                     self.passed_dt -= ticks_passed as f64 * TIMER_TICK_DURATION;
 
-                    println!("updating {} ticks", ticks_passed);
+                    // println!("updating {} ticks", ticks_passed);
                     self.chip8.update_timers(ticks_passed);
                 }
             }
 
             self.beeper.set_beeping(self.chip8.is_beeping())?;
+            self.display.update(&self.chip8.display, args.dt as f32);
         }
 
         Ok(())
@@ -196,7 +213,6 @@ impl<'a, 'b: 'a> App<'a, 'b> {
         if let Some(args) = e.render_args() {
             window.draw_2d(e, |c, g| {
                 let clear_color = [0.98, 0.95, 0.86, 1.0];
-                let solid_color = [0.02, 0.12, 0.15, 1.0];
 
                 clear(clear_color, g);
 
@@ -208,11 +224,14 @@ impl<'a, 'b: 'a> App<'a, 'b> {
                         let dx = x as f64 * w;
                         let dy = y as f64 * h;
 
-                        if self.chip8.display.get(x, y) != 0 {
-                            // let rect = [dx + w * 0.1, dy + h * 0.1, w * 0.9, h * 0.9];
-                            let rect = [dx, dy, w, h];
+                        match self.display.get_intensity(x, y) {
+                            intensity if intensity > 0.0 => {
+                                let rect = [dx, dy, w, h];
+                                let solid_color = [0.02, 0.12, 0.15, intensity];
 
-                            rectangle(solid_color, rect, c.transform, g);
+                                rectangle(solid_color, rect, c.transform, g);
+                            }
+                            _ => {}
                         }
                     }
                 }

@@ -1,16 +1,17 @@
 
 use chip8::display as c8_display;
 
-/// How long it takes in seconds for pixel to go from lit to non-lit.
-const PIXEL_DECAY_TIME: f32 = 0.9;
-
 pub struct Display {
+    pixel_decay_time: f32,
     pixel_intensity: [f32; 64 * 32], // todo: rename to intensity?
 }
 
 impl Display {
-    pub fn new() -> Display {
-        Display { pixel_intensity: [0.0; 64 * 32] }
+    pub fn new(pixel_decay_time: f32) -> Display {
+        Display {
+            pixel_decay_time,
+            pixel_intensity: [0.0; 64 * 32],
+        }
     }
 
     pub fn update(&mut self, new_frame: &c8_display::Display, dt: f32) {
@@ -20,7 +21,7 @@ impl Display {
                     self.pixel_intensity[y * 64 + x] = 1.0;
                 } else {
                     let current_intensity = self.pixel_intensity[y * 64 + x];
-                    let new_intensity = f32::max(0.0, current_intensity - (dt / PIXEL_DECAY_TIME));
+                    let new_intensity = f32::max(0.0, current_intensity - (dt / self.pixel_decay_time));
                     self.pixel_intensity[y * 64 + x] = new_intensity;
                 }
             }

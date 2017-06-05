@@ -10,7 +10,7 @@ use regfile::RegFile;
 use display::Display;
 
 pub struct Chip8<D: Display> {
-    memory: [u8; 4096],
+    pub memory: [u8; 4096],
     gpr: RegFile,
     stack: Stack,
     pc: u16,

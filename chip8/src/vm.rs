@@ -1,7 +1,6 @@
 use std::fmt;
 
 use rand::Rng;
-use rand;
 
 use stack::Stack;
 use timer;

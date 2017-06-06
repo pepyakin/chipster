@@ -15,7 +15,7 @@ mod render;
 use std::path::Path;
 use std::io;
 use std::fs::File;
-use render::{RenderBuf, RenderBufDisplay};
+use render::{RenderBuf};
 use chip8::{Vm, Env};
 
 error_chain! {

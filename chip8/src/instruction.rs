@@ -1,9 +1,4 @@
-
-error_chain! {
-    errors {
-        UnrecognizedInstruction(iw: InstructionWord)
-    }
-}
+use super::{Result, Error};
 
 #[derive(Debug, Copy, Clone)]
 pub struct InstructionWord(pub u16);
@@ -282,7 +277,7 @@ impl Instruction {
                         use enum_primitive::FromPrimitive;
 
                         Fun::from_u8(iw.n())
-                            .ok_or(ErrorKind::UnrecognizedInstruction(iw))?
+                            .ok_or(Error::UnrecognizedInstruction(iw))?
                     },
                 }
             }
@@ -315,7 +310,7 @@ impl Instruction {
                             inv: true,
                         }
                     }
-                    _ => bail!(ErrorKind::UnrecognizedInstruction(iw)),
+                    _ => return Err(Error::UnrecognizedInstruction(iw)),
                 }
             }
             0xF => {
@@ -329,10 +324,10 @@ impl Instruction {
                     0x33 => StoreBCD(iw.x_reg()),
                     0x55 => StoreRegs(iw.x_reg()),
                     0x65 => LoadRegs(iw.x_reg()),
-                    _ => bail!(ErrorKind::UnrecognizedInstruction(iw)),
+                    _ => return Err(Error::UnrecognizedInstruction(iw)),
                 }
             }
-            _ => bail!(ErrorKind::UnrecognizedInstruction(iw)),
+            _ => return Err(Error::UnrecognizedInstruction(iw)),
         };
         Ok(insn)
     }

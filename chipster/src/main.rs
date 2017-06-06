@@ -15,7 +15,7 @@ use std::path::Path;
 use std::io;
 use std::fs::File;
 use render::{RenderBuf, RenderBufDisplay};
-use chip8::Chip8;
+use chip8::Vm;
 
 error_chain! {
     links {
@@ -107,7 +107,7 @@ quick_main!(|| -> Result<()> {
 struct App<'a, 'b: 'a> {
     command_args: &'a CommandArgs,
     render_buf: RenderBuf,
-    chip8: Chip8<RenderBufDisplay>,
+    vm: Vm<RenderBufDisplay>,
     passed_dt: f64,
     paused: bool,
     beeper: &'a mut beep::Beeper<'b>,
@@ -128,12 +128,12 @@ impl<'a, 'b: 'a, 'c> App<'a, 'b> {
         let display = render_buf.display();
 
         let rom_data = read_rom(&command_args.rom_file_name)?;
-        let chip8 = Chip8::with_rom(&rom_data, display);
+        let vm = Vm::with_rom(&rom_data, display);
 
         Ok(App {
                command_args: command_args,
                render_buf: render_buf,
-               chip8: chip8,
+               vm: vm,
                passed_dt: 0f64,
                paused: false,
                beeper: beeper,
@@ -153,12 +153,12 @@ impl<'a, 'b: 'a, 'c> App<'a, 'b> {
             match e {
                 Press(button) => {
                     if let Some(pressed_key) = map_keycode(button) {
-                        self.chip8.keyboard[pressed_key] = 1;
+                        self.vm.keyboard[pressed_key] = 1;
                     }
                 }
                 Release(button) => {
                     if let Some(released_key) = map_keycode(button) {
-                        self.chip8.keyboard[released_key] = 0;
+                        self.vm.keyboard[released_key] = 0;
                     }
                 }
                 Update(update_args) => {
@@ -192,7 +192,7 @@ impl<'a, 'b: 'a, 'c> App<'a, 'b> {
         for _cycle_number in 0..cycles_to_perform {
             // println!("{}/{}", _cycle_number, cycles_to_perform);
 
-            self.chip8.cycle()?;
+            self.vm.cycle()?;
 
             self.passed_dt += dt_per_cycle;
             if self.passed_dt > TIMER_TICK_DURATION {
@@ -200,11 +200,11 @@ impl<'a, 'b: 'a, 'c> App<'a, 'b> {
                 self.passed_dt -= ticks_passed as f64 * TIMER_TICK_DURATION;
 
                 // println!("updating {} ticks", ticks_passed);
-                self.chip8.update_timers(ticks_passed);
+                self.vm.update_timers(ticks_passed);
             }
         }
 
-        self.beeper.set_beeping(self.chip8.is_beeping())?;
+        self.beeper.set_beeping(self.vm.is_beeping())?;
         self.render_buf.update(args.dt as f32);
 
         Ok(())

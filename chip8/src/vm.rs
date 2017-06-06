@@ -9,7 +9,7 @@ use instruction::*;
 use regfile::RegFile;
 use display::Display;
 
-pub struct Chip8<D: Display> {
+pub struct Vm<D: Display> {
     pub memory: [u8; 4096],
     gpr: RegFile,
     stack: Stack,
@@ -21,9 +21,9 @@ pub struct Chip8<D: Display> {
     pub keyboard: [u8; 16],
 }
 
-impl<D: Display> Chip8<D> {
-    pub fn new(display: D) -> Chip8<D> {
-        let mut chip8 = Chip8 {
+impl<D: Display> Vm<D> {
+    pub fn new(display: D) -> Vm<D> {
+        let mut vm = Vm {
             memory: [0; 4096],
             gpr: RegFile::new(),
             stack: Stack::new(),
@@ -36,23 +36,23 @@ impl<D: Display> Chip8<D> {
         };
 
         {
-            let font_memory = &mut chip8.memory[0..80];
+            let font_memory = &mut vm.memory[0..80];
             font_memory.copy_from_slice(&FONT_SPRITES);
         }
 
-        chip8
+        vm
     }
 
-    pub fn with_rom(rom_data: &[u8], display: D) -> Chip8<D> {
+    pub fn with_rom(rom_data: &[u8], display: D) -> Vm<D> {
         use std::io::Write;
 
-        let mut chip8 = Chip8::new(display);
+        let mut vm = Vm::new(display);
         {
-            let mut rom_start = &mut chip8.memory[0x200..];
+            let mut rom_start = &mut vm.memory[0x200..];
             rom_start.write_all(rom_data).expect("write should succeed");
         }
 
-        chip8
+        vm
     }
 
     pub fn cycle(&mut self) -> ::Result<()> {
@@ -256,9 +256,9 @@ impl<D: Display> Chip8<D> {
     }
 }
 
-impl<D: Display> fmt::Debug for Chip8<D> {
+impl<D: Display> fmt::Debug for Vm<D> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        f.debug_struct("Chip8")
+        f.debug_struct("Vm")
             .field("gpr", &self.gpr)
             .field("pc", &format!("{:04x}", self.pc))
             .field("i", &format!("{:04x}", self.i))

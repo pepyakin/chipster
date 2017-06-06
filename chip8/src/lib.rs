@@ -16,7 +16,7 @@ mod regfile;
 pub mod display;
 pub mod instruction;
 
-pub use self::vm::Chip8;
+pub use self::vm::Vm;
 
 error_chain! {
     links {

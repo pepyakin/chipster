@@ -1,7 +1,6 @@
 use std::fmt;
 
 use rand::Rng;
-use rand;
 
 use stack::Stack;
 use timer;
@@ -9,21 +8,25 @@ use instruction::*;
 use regfile::RegFile;
 use display::Display;
 
-pub struct Chip8<D: Display> {
-    memory: [u8; 4096],
+pub struct Vm {
+    pub memory: [u8; 4096],
     gpr: RegFile,
     stack: Stack,
     pc: u16,
     i: u16,
     dt: timer::Timer,
     st: timer::Timer,
+}
+
+pub struct Env<D: Display, R: Rng> {
     pub display: D,
+    pub rng: R,
     pub keyboard: [u8; 16],
 }
 
-impl<D: Display> Chip8<D> {
-    pub fn new(display: D) -> Chip8<D> {
-        let mut chip8 = Chip8 {
+impl Vm {
+    pub fn new() -> Vm {
+        let mut vm = Vm {
             memory: [0; 4096],
             gpr: RegFile::new(),
             stack: Stack::new(),
@@ -31,41 +34,26 @@ impl<D: Display> Chip8<D> {
             i: 0, // TODO: Initial value?
             dt: timer::Timer::new(),
             st: timer::Timer::new(),
-            display: display,
-            keyboard: [0; 16],
         };
 
         {
-            let font_memory = &mut chip8.memory[0..80];
+            let font_memory = &mut vm.memory[0..80];
             font_memory.copy_from_slice(&FONT_SPRITES);
         }
 
-        chip8
+        vm
     }
 
-    pub fn with_rom(rom_data: &[u8], display: D) -> Chip8<D> {
+    pub fn with_rom(rom_data: &[u8]) -> Vm {
         use std::io::Write;
 
-        let mut chip8 = Chip8::new(display);
+        let mut vm = Vm::new();
         {
-            let mut rom_start = &mut chip8.memory[0x200..];
+            let mut rom_start = &mut vm.memory[0x200..];
             rom_start.write_all(rom_data).expect("write should succeed");
         }
 
-        chip8
-    }
-
-    pub fn cycle(&mut self) -> ::Result<()> {
-        let instruction_word = {
-            use byteorder::{ByteOrder, BigEndian};
-            let actual_pc = self.pc as usize;
-            InstructionWord(BigEndian::read_u16(&self.memory[actual_pc..]))
-        };
-        let instruction = Instruction::decode(instruction_word)?;
-        let next_pc = self.execute_instruction(instruction);
-        self.pc = next_pc;
-
-        Ok(())
+        vm
     }
 
     pub fn update_timers(&mut self, dt: u8) {
@@ -73,13 +61,29 @@ impl<D: Display> Chip8<D> {
         self.st.step(dt);
     }
 
-    fn execute_instruction(&mut self, instruction: Instruction) -> u16 {
+    pub fn cycle<D: Display, R: Rng>(&mut self, env: &mut Env<D, R>) -> ::Result<()> {
+        let instruction_word = {
+            use byteorder::{ByteOrder, BigEndian};
+            let actual_pc = self.pc as usize;
+            InstructionWord(BigEndian::read_u16(&self.memory[actual_pc..]))
+        };
+        let instruction = Instruction::decode(instruction_word)?;
+        let next_pc = self.execute_instruction(env, instruction);
+        self.pc = next_pc;
+
+        Ok(())
+    }
+
+    fn execute_instruction<D: Display, R: Rng>(&mut self,
+                                               env: &mut Env<D, R>,
+                                               instruction: Instruction)
+                                               -> u16 {
         use instruction::Instruction::*;
 
         let mut next_pc = self.pc + 2;
 
         match instruction {
-            ClearScreen => self.display.clear(),
+            ClearScreen => env.display.clear(),
             Ret => {
                 let retaddr = self.stack.pop();
                 next_pc = retaddr;
@@ -172,7 +176,7 @@ impl<D: Display> Chip8<D> {
                 panic!("instruction not implemented 0xBxxx");
             }
             Randomize { vx, imm } => {
-                let random_byte = rand::thread_rng().gen::<u8>();
+                let random_byte = env.rng.gen::<u8>();
                 self.gpr[vx] = random_byte & imm.0;
             }
 
@@ -184,7 +188,7 @@ impl<D: Display> Chip8<D> {
 
                 let collision_bit = {
                     let sprite = &self.memory[from..to];
-                    self.display.draw(x, y, sprite)
+                    env.display.draw(x, y, sprite)
                 };
 
                 self.gpr[Reg::Vf] = if collision_bit { 1 } else { 0 };
@@ -192,11 +196,11 @@ impl<D: Display> Chip8<D> {
             SkipPressed { vx, inv } => {
                 let x = self.gpr[vx] as usize;
                 if !inv {
-                    if self.keyboard[x] == 1 {
+                    if env.keyboard[x] == 1 {
                         next_pc += 2;
                     }
                 } else {
-                    if self.keyboard[x] != 1 {
+                    if env.keyboard[x] != 1 {
                         next_pc += 2;
                     }
                 }
@@ -256,9 +260,9 @@ impl<D: Display> Chip8<D> {
     }
 }
 
-impl<D: Display> fmt::Debug for Chip8<D> {
+impl fmt::Debug for Vm {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        f.debug_struct("Chip8")
+        f.debug_struct("Vm")
             .field("gpr", &self.gpr)
             .field("pc", &format!("{:04x}", self.pc))
             .field("i", &format!("{:04x}", self.i))

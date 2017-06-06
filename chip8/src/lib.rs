@@ -17,6 +17,7 @@ pub mod display;
 pub mod instruction;
 
 pub use self::vm::Vm;
+pub use self::vm::Env;
 
 error_chain! {
     links {

@@ -1,9 +1,12 @@
 extern crate chip8;
+extern crate rand;
 
 use std::io::prelude::*;
 use std::fs::File;
 use std::rc::Rc;
 use std::cell::RefCell;
+
+use chip8::{Vm, Env};
 
 const DISPLAY_WIDTH: usize = 64;
 const DISPLAY_HEIGHT: usize = 32;
@@ -59,16 +62,26 @@ fn it_works() {
     println!("The current directory is {}", p.display());
 
     let mem = Rc::new(RefCell::new([false; DISPLAY_WIDTH * DISPLAY_HEIGHT]));
-    let mut display = RenderBufDisplay::new(mem.clone());
 
     let mut rom_file = File::open("tests/BRIX").unwrap();
     let mut buf = Vec::new();
     rom_file.read_to_end(&mut buf).unwrap();
-    let mut vm = chip8::Chip8::with_rom(&buf, display);
+    let mut vm = chip8::Vm::with_rom(&buf);
+
+    use rand::{Rng, SeedableRng, StdRng};
+
+    let seed: &[_] = &[2, 2, 8, 1];
+    let mut rng: StdRng = SeedableRng::from_seed(seed);
 
     for tick in 0..100 {
         for cycle in 0..4 {
-            vm.cycle();
+            let mut display = RenderBufDisplay::new(mem.clone());
+            let keyboard = [0u8; 16];
+            vm.cycle(&mut Env {
+                keyboard: keyboard,
+                display: display,
+                rng: rng
+            });
         }
         vm.update_timers(1);
     }

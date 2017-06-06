@@ -195,11 +195,12 @@ impl<'a, 'b: 'a, 'c> App<'a, 'b> {
             // println!("{}/{}", _cycle_number, cycles_to_perform);
 
             let display = self.render_buf.display();
-            self.vm.cycle(&mut Env {
-                display,
-                rng: rand::thread_rng(),
-                keyboard: self.keyboard.clone(),
-            })?;
+            self.vm
+                .cycle(&mut Env {
+                                display,
+                                rng: rand::thread_rng(),
+                                keyboard: self.keyboard.clone(),
+                            })?;
 
             self.passed_dt += dt_per_cycle;
             if self.passed_dt > TIMER_TICK_DURATION {

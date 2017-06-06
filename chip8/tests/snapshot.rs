@@ -25,9 +25,7 @@ pub struct RenderBufDisplay {
 
 impl RenderBufDisplay {
     fn new(mem: Rc<RefCell<[bool; DISPLAY_WIDTH * DISPLAY_HEIGHT]>>) -> RenderBufDisplay {
-        RenderBufDisplay {
-            mem
-        }
+        RenderBufDisplay { mem }
     }
 }
 
@@ -85,9 +83,7 @@ fn main() {
                     ignore: false,
                     should_panic: test::ShouldPanic::No,
                 },
-                testfn: TestFn::DynTestFn(Box::new(move |_| {
-                    test_rom_snapshot(&filename);
-                })),
+                testfn: TestFn::DynTestFn(Box::new(move |_| { test_rom_snapshot(&filename); })),
             };
             tests.push(test_desc_and_fn);
         }
@@ -114,10 +110,11 @@ fn test_rom_snapshot(rom_name: &str) {
             let display = RenderBufDisplay::new(mem.clone());
             let keyboard = [0u8; 16];
             vm.cycle(&mut Env {
-                keyboard: keyboard,
-                display: display,
-                rng: rng
-            }).unwrap();
+                                keyboard: keyboard,
+                                display: display,
+                                rng: rng,
+                            })
+                .unwrap();
         }
         vm.update_timers(1);
     }

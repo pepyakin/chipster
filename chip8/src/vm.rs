@@ -75,7 +75,10 @@ impl Vm {
         Ok(())
     }
 
-    fn execute_instruction<D: Display, R: Rng>(&mut self, env: &mut Env<D, R>, instruction: Instruction) -> u16 {
+    fn execute_instruction<D: Display, R: Rng>(&mut self,
+                                               env: &mut Env<D, R>,
+                                               instruction: Instruction)
+                                               -> u16 {
         use instruction::Instruction::*;
 
         let mut next_pc = self.pc + 2;

@@ -1,11 +1,17 @@
 // `error_chain!` can recurse deeply
 #![recursion_limit = "1024"]
 
+#![cfg_attr(not(feature = "std"), no_std)]
+
+#[cfg(not(feature = "std"))]
+#[macro_use] extern crate collections;
+
 extern crate rand;
 extern crate byteorder;
 #[macro_use]
 extern crate enum_primitive;
 
+#[cfg(feature = "std")]
 extern crate core;
 
 mod stack;
@@ -24,12 +30,10 @@ pub enum Error {
     UnrecognizedInstruction(instruction::InstructionWord),
 }
 
-type Result<T> = core::result::Result<T, Error>;
+pub type Result<T> = core::result::Result<T, Error>;
 
-mod stdfeatures {
-    use super::*;
-
-    impl std::error::Error for Error {
+#[cfg(feature = "std")]
+impl std::error::Error for Error {
     /// A short description of the error.
     fn description(&self) -> &str {
         match *self {
@@ -39,11 +43,11 @@ mod stdfeatures {
 
     /// The lower level cause of this error, if any.
     fn cause(&self) -> Option<&std::error::Error> { None }
-    }
+}
 
-    impl std::fmt::Display for Error {
-        fn fmt(&self, f: &mut std::fmt::Formatter) -> std::result::Result<(), std::fmt::Error> {
-            write!(f, "{:?}", self)
-        }
+#[cfg(feature = "std")]
+impl std::fmt::Display for Error {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::result::Result<(), std::fmt::Error> {
+        write!(f, "{:?}", self)
     }
 }

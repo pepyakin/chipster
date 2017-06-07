@@ -19,11 +19,8 @@ use render::{RenderBuf};
 use chip8::{Vm, Env};
 
 error_chain! {
-    links {
-        Chip8Error(chip8::Error, chip8::ErrorKind);
-    }
-
     foreign_links {
+        Chip8(chip8::Error);
         Io(io::Error);
         PortAudio(portaudio::Error);
     }

@@ -1,5 +1,5 @@
-use std::ops::{Index, IndexMut};
-use std::fmt;
+use core::ops::{Index, IndexMut};
+use core::fmt;
 use instruction::Reg;
 
 pub struct RegFile {

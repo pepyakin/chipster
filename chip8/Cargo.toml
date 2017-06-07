@@ -5,6 +5,10 @@ authors = ["Sergey Pepyakin <s.pepyakin@gmail.com>"]
 
 [lib]
 
+[features]
+default = ["std"]
+std = []
+
 [dependencies]
 rand = "0.3"
 byteorder = "0.5"

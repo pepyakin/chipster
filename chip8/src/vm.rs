@@ -1,4 +1,4 @@
-use std::fmt;
+use core::fmt;
 
 use rand::Rng;
 
@@ -45,12 +45,12 @@ impl Vm {
     }
 
     pub fn with_rom(rom_data: &[u8]) -> Vm {
-        use std::io::Write;
-
         let mut vm = Vm::new();
         {
-            let mut rom_start = &mut vm.memory[0x200..];
-            rom_start.write_all(rom_data).expect("write should succeed");
+            let rom_start = 0x200;
+            let rom_end = rom_start + rom_data.len();
+            let mut rom_slice = &mut vm.memory[rom_start..rom_end];
+            rom_slice.copy_from_slice(rom_data);
         }
 
         vm

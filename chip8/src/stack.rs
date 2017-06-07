@@ -1,5 +1,5 @@
-use std::fmt;
 
+#[derive(Debug)]
 pub struct Stack {
     sp: usize,
     frames: [u16; 16],
@@ -27,16 +27,6 @@ impl Stack {
 
         self.sp = new_sp;
         self.frames[new_sp] = value;
-    }
-}
-
-impl fmt::Debug for Stack {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        let values = &self.frames[0..(self.sp + 1)];
-        f.debug_struct("Stack")
-            .field("values", &values)
-            .field("sp", &self.sp)
-            .finish()
     }
 }
 

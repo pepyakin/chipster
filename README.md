@@ -1,7 +1,7 @@
 # chipster
 [![Build Status](https://travis-ci.org/pepyakin/chipster.svg?branch=master)](https://travis-ci.org/pepyakin/chipster)
 
-Yet another Chip8 implementation.
+Yet another [CHIP-8](https://en.wikipedia.org/wiki/CHIP-8) implementation.
 
 ![Screenshot - F8z](screenshot_f8z.png)
 

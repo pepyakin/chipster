@@ -82,6 +82,7 @@ fn main() {
                     name: DynTestName(filename.clone()),
                     ignore: false,
                     should_panic: test::ShouldPanic::No,
+                    allow_fail: false,
                 },
                 testfn: TestFn::DynTestFn(Box::new(move |_| { test_rom_snapshot(&filename); })),
             };

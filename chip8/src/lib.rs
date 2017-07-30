@@ -4,7 +4,8 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
 #[cfg(not(feature = "std"))]
-#[macro_use] extern crate collections;
+#[macro_use]
+extern crate collections;
 
 extern crate rand;
 extern crate byteorder;
@@ -37,12 +38,14 @@ impl std::error::Error for Error {
     /// A short description of the error.
     fn description(&self) -> &str {
         match *self {
-            Error::UnrecognizedInstruction(_) => { "unrecognized instruction" }
+            Error::UnrecognizedInstruction(_) => "unrecognized instruction",
         }
     }
 
     /// The lower level cause of this error, if any.
-    fn cause(&self) -> Option<&std::error::Error> { None }
+    fn cause(&self) -> Option<&std::error::Error> {
+        None
+    }
 }
 
 #[cfg(feature = "std")]

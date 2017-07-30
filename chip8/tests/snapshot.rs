@@ -110,11 +110,10 @@ fn test_rom_snapshot(rom_name: &str) {
             let display = RenderBufDisplay::new(mem.clone());
             let keyboard = [0u8; 16];
             vm.cycle(&mut Env {
-                                keyboard: keyboard,
-                                display: display,
-                                rng: rng,
-                            })
-                .unwrap();
+                keyboard: keyboard,
+                display: display,
+                rng: rng,
+            }).unwrap();
         }
         vm.update_timers(1);
     }

@@ -15,7 +15,7 @@ mod render;
 use std::path::Path;
 use std::io;
 use std::fs::File;
-use render::{RenderBuf};
+use render::RenderBuf;
 use chip8::{Vm, Env};
 
 error_chain! {
@@ -37,22 +37,30 @@ impl CommandArgs {
         use clap::{Arg, App};
 
         let matches = App::new("chip8 emulator")
-            .arg(Arg::with_name("ROM_FILE")
-                     .help("rom file to load")
-                     .required(true))
-            .arg(Arg::with_name("cycles per second")
-                     .short("c")
-                     .long("cycles-per-sec")
-                     .value_name("cycles_per_second")
-                     .help("How many Chip8 cycles should be executed per second. Values between \
-                       500-1000 should be fine.")
-                     .takes_value(true))
-            .arg(Arg::with_name("pixel decay time")
-                     .short("d")
-                     .long("pixel-decay-time")
-                     .value_name("pixel_decay_time")
-                     .help("How many seconds takes for pixel from lit to non-lit")
-                     .takes_value(true))
+            .arg(
+                Arg::with_name("ROM_FILE")
+                    .help("rom file to load")
+                    .required(true),
+            )
+            .arg(
+                Arg::with_name("cycles per second")
+                    .short("c")
+                    .long("cycles-per-sec")
+                    .value_name("cycles_per_second")
+                    .help(
+                        "How many Chip8 cycles should be executed per second. Values between \
+                       500-1000 should be fine.",
+                    )
+                    .takes_value(true),
+            )
+            .arg(
+                Arg::with_name("pixel decay time")
+                    .short("d")
+                    .long("pixel-decay-time")
+                    .value_name("pixel_decay_time")
+                    .help("How many seconds takes for pixel from lit to non-lit")
+                    .takes_value(true),
+            )
             .get_matches();
 
         let cycles_per_second = matches
@@ -91,13 +99,12 @@ quick_main!(|| -> Result<()> {
     let args = CommandArgs::parse();
 
     let mut beeper_factory = beep::BeeperFactory::new()?;
-    beeper_factory
-        .with_beeper(|mut beeper| {
-                         let app = App::new(&args, &mut beeper)?;
-                         let piston_window = build_window();
-                         app.run(piston_window)?;
-                         Ok(())
-                     })?;
+    beeper_factory.with_beeper(|mut beeper| {
+        let app = App::new(&args, &mut beeper)?;
+        let piston_window = build_window();
+        app.run(piston_window)?;
+        Ok(())
+    })?;
 
     Ok(())
 });
@@ -129,14 +136,14 @@ impl<'a, 'b: 'a, 'c> App<'a, 'b> {
         let vm = Vm::with_rom(&rom_data);
 
         Ok(App {
-               command_args: command_args,
-               render_buf: render_buf,
-               vm: vm,
-               passed_dt: 0f64,
-               paused: false,
-               beeper: beeper,
-               keyboard: [0; 16],
-           })
+            command_args: command_args,
+            render_buf: render_buf,
+            vm: vm,
+            passed_dt: 0f64,
+            paused: false,
+            beeper: beeper,
+            keyboard: [0; 16],
+        })
     }
 
     fn run(mut self, mut window: PistonWindow) -> Result<()> {
@@ -192,12 +199,11 @@ impl<'a, 'b: 'a, 'c> App<'a, 'b> {
             // println!("{}/{}", _cycle_number, cycles_to_perform);
 
             let display = self.render_buf.display();
-            self.vm
-                .cycle(&mut Env {
-                                display,
-                                rng: rand::thread_rng(),
-                                keyboard: self.keyboard.clone(),
-                            })?;
+            self.vm.cycle(&mut Env {
+                display,
+                rng: rand::thread_rng(),
+                keyboard: self.keyboard.clone(),
+            })?;
 
             self.passed_dt += dt_per_cycle;
             if self.passed_dt > TIMER_TICK_DURATION {

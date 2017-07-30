@@ -17,7 +17,8 @@ impl BeeperFactory {
     }
 
     pub fn with_beeper<F>(&mut self, f: F) -> ::Result<()>
-        where F: FnOnce(&mut Beeper) -> ::Result<()>
+    where
+        F: FnOnce(&mut Beeper) -> ::Result<()>,
     {
         let mut beeper = Beeper::new(&mut self.portaudio)?;
         f(&mut beeper)?;
@@ -36,7 +37,11 @@ impl<'a> Beeper<'a> {
     fn new(p: &'a mut portaudio::PortAudio) -> ::Result<Beeper<'a>> {
         use std::f64::consts::PI;
 
-        let settings = p.default_output_stream_settings(CHANNELS, SAMPLE_RATE, FRAMES_PER_BUFFER)?;
+        let settings = p.default_output_stream_settings(
+            CHANNELS,
+            SAMPLE_RATE,
+            FRAMES_PER_BUFFER,
+        )?;
 
         let mut sine = [0.0; TABLE_SIZE];
         for (i, item) in sine.iter_mut().enumerate().take(TABLE_SIZE) {
@@ -65,9 +70,9 @@ impl<'a> Beeper<'a> {
 
         let stream = p.open_non_blocking_stream(settings, callback)?;
         Ok(Beeper {
-               stream: stream,
-               beeping: false,
-           })
+            stream: stream,
+            beeping: false,
+        })
     }
 
     pub fn set_beeping(&mut self, beeping: bool) -> ::Result<()> {

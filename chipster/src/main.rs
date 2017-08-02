@@ -1,13 +1,9 @@
-extern crate portaudio;
-extern crate piston_window;
 extern crate clap;
 #[macro_use]
 extern crate error_chain;
 extern crate chip8;
 extern crate rand;
-
-use piston_window::*;
-use piston_window::Input::*;
+extern crate sdl2;
 
 mod beep;
 mod render;
@@ -18,11 +14,15 @@ use std::fs::File;
 use render::RenderBuf;
 use chip8::{Vm, Env};
 
+use sdl2::keyboard::Keycode;
+use sdl2::rect::Rect;
+use sdl2::event::Event;
+use sdl2::pixels::Color;
+
 error_chain! {
     foreign_links {
         Chip8(chip8::Error);
         Io(io::Error);
-        PortAudio(portaudio::Error);
     }
 }
 
@@ -81,34 +81,6 @@ impl CommandArgs {
     }
 }
 
-fn build_window() -> PistonWindow {
-    let title = "Chip8";
-    let mut window: PistonWindow =
-        WindowSettings::new(title, [640, 320])
-            .exit_on_esc(true)
-            .build()
-            .unwrap_or_else(|e| panic!("Failed to build PistonWindow: {}", e));
-
-    window.set_swap_buffers(false);
-    window.set_max_fps(60);
-
-    window
-}
-
-quick_main!(|| -> Result<()> {
-    let args = CommandArgs::parse();
-
-    let mut beeper_factory = beep::BeeperFactory::new()?;
-    beeper_factory.with_beeper(|mut beeper| {
-        let app = App::new(&args, &mut beeper)?;
-        let piston_window = build_window();
-        app.run(piston_window)?;
-        Ok(())
-    })?;
-
-    Ok(())
-});
-
 struct App<'a, 'b: 'a> {
     command_args: &'a CommandArgs,
     render_buf: RenderBuf,
@@ -128,6 +100,19 @@ fn read_rom<P: AsRef<Path>>(path: P) -> Result<Vec<u8>> {
     Ok(rom_buffer)
 }
 
+quick_main!(|| -> Result<()> {
+    let args = CommandArgs::parse();
+
+    let mut beeper_factory = beep::BeeperFactory::new()?;
+    beeper_factory.with_beeper(|mut beeper| {
+        let app = App::new(&args, &mut beeper)?;
+        app.run()?;
+        Ok(())
+    })?;
+
+    Ok(())
+});
+
 impl<'a, 'b: 'a, 'c> App<'a, 'b> {
     fn new(command_args: &'a CommandArgs, beeper: &'a mut beep::Beeper<'b>) -> Result<App<'a, 'b>> {
         let render_buf = RenderBuf::new(command_args.pixel_decay_time);
@@ -146,48 +131,56 @@ impl<'a, 'b: 'a, 'c> App<'a, 'b> {
         })
     }
 
-    fn run(mut self, mut window: PistonWindow) -> Result<()> {
-        while let Some(e) = window.next() {
-            if Release(Button::Keyboard(Key::Space)) == e {
-                self.paused = !self.paused;
+    fn run(mut self) -> Result<()> {
+        let ctx = sdl2::init().unwrap();
+        let video_ctx = ctx.video().unwrap();
+        let window = video_ctx
+            .window("chipster", 640, 320)
+            .position_centered()
+            .opengl()
+            .build()
+            .unwrap();
+        let mut canvas = window.into_canvas().build().unwrap();
+        let mut events = ctx.event_pump().unwrap();
+        let mut timer = ctx.timer().unwrap();
+
+        let mut last_ticks = timer.ticks();
+
+        'main: loop {
+            for event in events.poll_iter() {
+                match event {
+                    Event::Quit { .. } => break 'main,
+                    Event::KeyDown { keycode: Some(keycode), .. } => {
+                        if let Some(pressed_key) = map_keycode(keycode) {
+                            self.keyboard[pressed_key] = 1;
+                        }
+                    }
+                    Event::KeyUp { keycode: Some(keycode), .. } => {
+                        if let Some(pressed_key) = map_keycode(keycode) {
+                            self.keyboard[pressed_key] = 0;
+                        }
+                    }
+                    _ => {}
+                }
             }
 
-            if self.paused {
-                continue;
-            }
-
-            match e {
-                Press(button) => {
-                    if let Some(pressed_key) = map_keycode(button) {
-                        self.keyboard[pressed_key] = 1;
-                    }
-                }
-                Release(button) => {
-                    if let Some(released_key) = map_keycode(button) {
-                        self.keyboard[released_key] = 0;
-                    }
-                }
-                Update(update_args) => {
-                    self.update(update_args)?;
-                }
-                Render(render_args) => {
-                    self.render(&e, render_args, &mut window);
-                }
-                _ => {}
-            }
+            let current_ticks = timer.ticks();
+            let dt = (current_ticks - last_ticks) as f64 / 1000.0;
+            self.update(dt)?;
+            self.render(&mut canvas);
+            last_ticks = current_ticks;
         }
 
         Ok(())
     }
 
-    fn update(&mut self, args: UpdateArgs) -> Result<()> {
+    fn update(&mut self, dt: f64) -> Result<()> {
         const TIMER_TICK_DURATION: f64 = 1.0 / 60.0;
 
         // See "Secrets of emulation" chapter
         // in https://github.com/AfBu/haxe-chip-8-emulator/wiki/(Super)CHIP-8-Secrets
 
         // TODO: Test for low values.
-        let dt = args.dt;
         let cycles_to_perform = (dt * self.command_args.cycles_per_second as f64).floor() as usize;
         let dt_per_cycle = dt / cycles_to_perform as f64;
         // println!("dt={}, dt_per_cycle={}, cycles_to_perform={}",
@@ -216,42 +209,46 @@ impl<'a, 'b: 'a, 'c> App<'a, 'b> {
         }
 
         self.beeper.set_beeping(self.vm.is_beeping())?;
-        self.render_buf.update(args.dt as f32);
+        self.render_buf.update(dt as f32);
 
         Ok(())
     }
 
-    fn render(&mut self, e: &Input, args: RenderArgs, window: &mut PistonWindow) {
-        window.draw_2d(e, |c, g| {
-            let clear_color = [0.98, 0.95, 0.86, 1.0];
+    fn render(&mut self, canvas: &mut sdl2::render::Canvas<sdl2::video::Window>) {
+        let clear_color = Color::RGB(250, 242, 219);
+        canvas.set_draw_color(clear_color);
+        canvas.clear();
 
-            clear(clear_color, g);
+        let size = {
+            let window = canvas.window();
+            window.size()
+        };
 
-            let w = args.width as f64 / 64.0;
-            let h = args.height as f64 / 32.0;
+        let w = (size.0 as f64 / 64.0) as u32;
+        let h = (size.1 as f64 / 32.0) as u32;
 
-            for y in 0..32 {
-                for x in 0..64 {
-                    let dx = x as f64 * w;
-                    let dy = y as f64 * h;
+        for y in 0..32 {
+            for x in 0..64 {
+                let dx = x as i32 * w as i32;
+                let dy = y as i32 * h as i32;
 
-                    match self.render_buf.get_intensity(x, y) {
-                        intensity if intensity > 0.0 => {
-                            let rect = [dx, dy, w, h];
-                            let solid_color = [0.02, 0.12, 0.15, intensity];
-
-                            rectangle(solid_color, rect, c.transform, g);
-                        }
-                        _ => {}
+                match self.render_buf.get_intensity(x, y) {
+                    intensity if intensity > 0.0 => {
+                        let solid_color = Color::RGBA(5, 31, 38, (intensity * 255.0) as u8);
+                        let rect = Rect::new(dx, dy, w, h);
+                        canvas.set_draw_color(solid_color);
+                        canvas.fill_rect(rect);
                     }
+                    _ => {}
                 }
             }
-        });
-        Window::swap_buffers(window);
+        }
+
+        canvas.present();
     }
 }
 
-fn map_keycode(k: Button) -> Option<usize> {
+fn map_keycode(k: Keycode) -> Option<usize> {
     // Classical layout, see http://devernay.free.fr/hacks/chip8/C8TECH10.HTM#2.3
     // +---+---+---+---+
     // | 1 | 2 | 3 | C |
@@ -263,30 +260,26 @@ fn map_keycode(k: Button) -> Option<usize> {
     // | A | 0 | B | F |
     // +---+---+---+---+
 
-    if let Button::Keyboard(k) = k {
-        match k {
-            Key::D1 => Some(0x1),
-            Key::D2 => Some(0x2),
-            Key::D3 => Some(0x3),
-            Key::D4 => Some(0xC),
+    match k {
+        Keycode::Num1 => Some(0x1),
+        Keycode::Num2 => Some(0x2),
+        Keycode::Num3 => Some(0x3),
+        Keycode::Num4 => Some(0xC),
 
-            Key::Q => Some(0x4),
-            Key::W => Some(0x5),
-            Key::E => Some(0x6),
-            Key::R => Some(0xD),
+        Keycode::Q => Some(0x4),
+        Keycode::W => Some(0x5),
+        Keycode::E => Some(0x6),
+        Keycode::R => Some(0xD),
 
-            Key::A => Some(0x7),
-            Key::S => Some(0x8),
-            Key::D => Some(0x9),
-            Key::F => Some(0xE),
+        Keycode::A => Some(0x7),
+        Keycode::S => Some(0x8),
+        Keycode::D => Some(0x9),
+        Keycode::F => Some(0xE),
 
-            Key::Z => Some(0xA),
-            Key::X => Some(0x0),
-            Key::C => Some(0xB),
-            Key::V => Some(0xF),
-            _ => None,
-        }
-    } else {
-        None
+        Keycode::Z => Some(0xA),
+        Keycode::X => Some(0x0),
+        Keycode::C => Some(0xB),
+        Keycode::V => Some(0xF),
+        _ => None,
     }
 }

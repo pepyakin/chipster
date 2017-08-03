@@ -114,7 +114,7 @@ quick_main!(|| -> Result<()> {
         cycles_per_second: 15000,
         pixel_decay_time: 0.3,
     };
-    
+
     let mut beeper_factory = beep::BeeperFactory::new()?;
     beeper_factory.with_beeper(|mut beeper| {
         let app = App::new(&args, &mut beeper)?;
@@ -162,11 +162,12 @@ impl<'a, 'b: 'a, 'c> App<'a, 'b> {
         let mut main_loop = |done: &mut bool| {
             for event in events.poll_iter() {
                 match event {
-                    Event::Quit { .. } | Event::KeyDown { keycode: Some(Keycode::Escape), .. }  => {
+                    Event::Quit { .. } |
+                    Event::KeyDown { keycode: Some(Keycode::Escape), .. } => {
                         *done = true;
                         println!("bye!");
                         return;
-                    },
+                    }
 
                     Event::KeyDown { keycode: Some(keycode), .. } => {
                         if let Some(pressed_key) = map_keycode(keycode) {
@@ -188,7 +189,7 @@ impl<'a, 'b: 'a, 'c> App<'a, 'b> {
             self.render(&mut canvas);
             last_ticks = current_ticks;
         };
-        
+
         #[cfg(target_os = "emscripten")]
         let looper = emscripten::EmscriptenLooper;
 
@@ -245,13 +246,12 @@ impl<'a, 'b: 'a, 'c> App<'a, 'b> {
         canvas.set_draw_color(clear_color);
         canvas.clear();
 
-        let size = {
-            let window = canvas.window();
-            window.size()
+        let (w, h) = match canvas.window().size() {
+            (win_width, win_height) => (
+                (win_width as f64 / 64.0) as u32,
+                (win_height as f64 / 32.0) as u32,
+            ),
         };
-
-        let w = (size.0 as f64 / 64.0) as u32;
-        let h = (size.1 as f64 / 32.0) as u32;
 
         for y in 0..32 {
             for x in 0..64 {
@@ -311,13 +311,18 @@ fn map_keycode(k: Keycode) -> Option<usize> {
 }
 
 trait Looper {
-    fn start_loop<F>(self, f: F) where F: FnMut(&mut bool);
+    fn start_loop<F>(self, f: F)
+    where
+        F: FnMut(&mut bool);
 }
 
 struct DefaultLooper;
 
 impl Looper for DefaultLooper {
-    fn start_loop<F>(self, mut f: F) where F: FnMut(&mut bool) {
+    fn start_loop<F>(self, mut f: F)
+    where
+        F: FnMut(&mut bool),
+    {
         use std::{thread, time};
 
         let frame_interval = time::Duration::from_millis(16);
@@ -345,11 +350,15 @@ mod emscripten {
     use std::os::raw::{c_int, c_void, c_float};
 
     #[allow(non_camel_case_types)]
-    type em_callback_func = unsafe extern fn();
+    type em_callback_func = unsafe extern "C" fn();
 
-    #[link_args="-s USE_SDL=2"]
-    extern {
-        pub fn emscripten_set_main_loop(func: em_callback_func, fps: c_int, simulate_infinite_loop: c_int);
+    #[link_args = "-s USE_SDL=2"]
+    extern "C" {
+        pub fn emscripten_set_main_loop(
+            func: em_callback_func,
+            fps: c_int,
+            simulate_infinite_loop: c_int,
+        );
         pub fn emscripten_cancel_main_loop();
         pub fn emscripten_get_now() -> c_float;
     }
@@ -358,14 +367,22 @@ mod emscripten {
     // https://kripken.github.io/emscripten-site/docs/api_reference/emscripten.h.html#c.emscripten_set_main_loop_arg
     thread_local!(static MAIN_LOOP_CALLBACK: RefCell<*mut c_void> = RefCell::new(null_mut()));
 
-    pub fn set_main_loop_callback<F>(callback: F) where F: FnMut() {
+    pub fn set_main_loop_callback<F>(callback: F)
+    where
+        F: FnMut(),
+    {
         MAIN_LOOP_CALLBACK.with(|log| {
             *log.borrow_mut() = &callback as *const _ as *mut c_void;
         });
 
-        unsafe { emscripten_set_main_loop(wrapper::<F>, 0, 1); }
+        unsafe {
+            emscripten_set_main_loop(wrapper::<F>, 0, 1);
+        }
 
-        unsafe extern "C" fn wrapper<F>() where F: FnMut() {
+        unsafe extern "C" fn wrapper<F>()
+        where
+            F: FnMut(),
+        {
             MAIN_LOOP_CALLBACK.with(|z| {
                 let closure = *z.borrow_mut() as *mut F;
                 (*closure)();
@@ -376,7 +393,10 @@ mod emscripten {
     pub struct EmscriptenLooper;
 
     impl super::Looper for EmscriptenLooper {
-        fn start_loop<F>(self, mut f: F) where F: FnMut(&mut bool) {
+        fn start_loop<F>(self, mut f: F)
+        where
+            F: FnMut(&mut bool),
+        {
             set_main_loop_callback(|| {
                 let mut done = false;
                 f(&mut done);

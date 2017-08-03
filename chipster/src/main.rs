@@ -320,9 +320,9 @@ impl Looper for DefaultLooper {
     fn start_loop<F>(self, mut f: F) where F: FnMut(&mut bool) {
         use std::{thread, time};
 
-        let delay = time::Duration::from_millis(16);
+        let frame_interval = time::Duration::from_millis(16);
         loop {
-            let now = time::Instant::now();
+            let frame_start = time::Instant::now();
 
             let mut done = false;
             f(&mut done);
@@ -330,7 +330,10 @@ impl Looper for DefaultLooper {
                 break;
             }
 
-            thread::sleep(delay);
+            match frame_interval.checked_sub(frame_start.elapsed()) {
+                Some(delay) => thread::sleep(delay),
+                None => {}
+            }
         }
     }
 }

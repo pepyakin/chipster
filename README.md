@@ -1,7 +1,9 @@
-# chipster
+# 🎮 chipster
 [![Build Status](https://travis-ci.org/pepyakin/chipster.svg?branch=master)](https://travis-ci.org/pepyakin/chipster)
 
 Yet another [CHIP-8](https://en.wikipedia.org/wiki/CHIP-8) implementation.
+
+Web version available [here](http://pepyakin.github.io/chipster/) (requires WebAssembly).
 
 ![Screenshot - F8z](screenshot_f8z.png)
 

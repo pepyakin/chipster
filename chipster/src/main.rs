@@ -354,6 +354,8 @@ mod emscripten {
         pub fn emscripten_get_now() -> c_float;
     }
 
+    // TODO: do better with emscripten_set_main_loop_arg
+    // https://kripken.github.io/emscripten-site/docs/api_reference/emscripten.h.html#c.emscripten_set_main_loop_arg
     thread_local!(static MAIN_LOOP_CALLBACK: RefCell<*mut c_void> = RefCell::new(null_mut()));
 
     pub fn set_main_loop_callback<F>(callback: F) where F: FnMut() {

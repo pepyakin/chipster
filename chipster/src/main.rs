@@ -162,8 +162,9 @@ impl<'a, 'b: 'a, 'c> App<'a, 'b> {
         let mut main_loop = |done: &mut bool| {
             for event in events.poll_iter() {
                 match event {
-                    Event::Quit { .. } => {
+                    Event::Quit { .. } | Event::KeyDown { keycode: Some(Keycode::Escape), .. }  => {
                         *done = true;
+                        println!("bye!");
                         return;
                     },
 

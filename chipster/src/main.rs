@@ -6,8 +6,6 @@ extern crate error_chain;
 extern crate chip8;
 extern crate rand;
 extern crate sdl2;
-#[macro_use]
-extern crate cfg_if;
 
 mod beep;
 mod render;

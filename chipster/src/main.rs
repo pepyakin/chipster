@@ -1,9 +1,16 @@
+ #![feature(link_args)]
+
 extern crate clap;
 #[macro_use]
 extern crate error_chain;
 extern crate chip8;
 extern crate rand;
 extern crate sdl2;
+#[macro_use]
+extern crate cfg_if;
+
+#[cfg(target_os = "emscripten")]
+pub mod emscripten;
 
 mod beep;
 mod render;
@@ -101,8 +108,16 @@ fn read_rom<P: AsRef<Path>>(path: P) -> Result<Vec<u8>> {
 }
 
 quick_main!(|| -> Result<()> {
+    #[cfg(not(target_os = "emscripten"))]
     let args = CommandArgs::parse();
 
+    #[cfg(target_os = "emscripten")]
+    let args = CommandArgs {
+        rom_file_name: "file.rom".to_string(),
+        cycles_per_second: 500,
+        pixel_decay_time: 0.3,
+    };
+    
     let mut beeper_factory = beep::BeeperFactory::new()?;
     beeper_factory.with_beeper(|mut beeper| {
         let app = App::new(&args, &mut beeper)?;
@@ -117,8 +132,9 @@ impl<'a, 'b: 'a, 'c> App<'a, 'b> {
     fn new(command_args: &'a CommandArgs, beeper: &'a mut beep::Beeper<'b>) -> Result<App<'a, 'b>> {
         let render_buf = RenderBuf::new(command_args.pixel_decay_time);
 
-        let rom_data = read_rom(&command_args.rom_file_name)?;
-        let vm = Vm::with_rom(&rom_data);
+        // let rom_data = read_rom(&command_args.rom_file_name)?;
+        let rom_data = include_bytes!("../../stuff/f8z.ch8");
+        let vm = Vm::with_rom(rom_data as &[u8]);
 
         Ok(App {
             command_args: command_args,
@@ -146,10 +162,10 @@ impl<'a, 'b: 'a, 'c> App<'a, 'b> {
 
         let mut last_ticks = timer.ticks();
 
-        'main: loop {
+        let mut main_loop = || {
             for event in events.poll_iter() {
                 match event {
-                    Event::Quit { .. } => break 'main,
+                    // Event::Quit { .. } => break 'main,
                     Event::KeyDown { keycode: Some(keycode), .. } => {
                         if let Some(pressed_key) = map_keycode(keycode) {
                             self.keyboard[pressed_key] = 1;
@@ -166,10 +182,16 @@ impl<'a, 'b: 'a, 'c> App<'a, 'b> {
 
             let current_ticks = timer.ticks();
             let dt = (current_ticks - last_ticks) as f64 / 1000.0;
-            self.update(dt)?;
+            self.update(dt).unwrap();
             self.render(&mut canvas);
             last_ticks = current_ticks;
-        }
+        };
+        
+        #[cfg(target_os = "emscripten")]
+        emscripten::set_main_loop_callback(main_loop);
+
+        #[cfg(not(target_os = "emscripten"))]
+        loop { main_loop(); }
 
         Ok(())
     }

@@ -3,3 +3,4 @@ stuff
 target-install
 *.bk
 .vscode
+.idea

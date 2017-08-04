@@ -353,11 +353,11 @@ impl Looper for DefaultLooper {
                 }
                 Ok(Step::Done) => {
                     std::process::exit(0);
-                },
+                }
                 Err(e) => {
                     println!("Error: {}", e);
                     std::process::exit(1);
-                },
+                }
             }
         }
     }
@@ -426,7 +426,7 @@ mod emscripten {
                 Err(e) => unsafe {
                     println!("Error: {}", e);
                     emscripten_cancel_main_loop();
-                }
+                },
             });
 
             // unreachable because simulate_infinite_loop=1 and

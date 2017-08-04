@@ -85,16 +85,6 @@ impl CommandArgs {
     }
 }
 
-struct App<'a, 'b: 'a> {
-    command_args: &'a CommandArgs,
-    render_buf: RenderBuf,
-    vm: Vm,
-    passed_dt: f64,
-    paused: bool,
-    beeper: &'a mut beep::Beeper<'b>,
-    keyboard: [u8; 16],
-}
-
 fn read_rom<P: AsRef<Path>>(path: P) -> Result<Vec<u8>> {
     use std::io::Read;
 
@@ -126,18 +116,23 @@ fn do_run() -> Result<()> {
         pixel_decay_time: 0.3,
     };
 
-    let mut beeper_factory = beep::BeeperFactory::new()?;
-    beeper_factory.with_beeper(|mut beeper| {
-        let app = App::new(&args, &mut beeper)?;
-        app.run()?;
-        Ok(())
-    })?;
+    let app = App::new(&args)?;
+    app.run()?;
 
     Ok(())
 }
 
-impl<'a, 'b: 'a, 'c> App<'a, 'b> {
-    fn new(command_args: &'a CommandArgs, beeper: &'a mut beep::Beeper<'b>) -> Result<App<'a, 'b>> {
+struct App<'a> {
+    command_args: &'a CommandArgs,
+    render_buf: RenderBuf,
+    vm: Vm,
+    passed_dt: f64,
+    paused: bool,
+    keyboard: [u8; 16],
+}
+
+impl<'a> App<'a> {
+    fn new(command_args: &'a CommandArgs) -> Result<App<'a>> {
         let render_buf = RenderBuf::new(command_args.pixel_decay_time);
 
         // let rom_data = read_rom(&command_args.rom_file_name)?;
@@ -150,7 +145,6 @@ impl<'a, 'b: 'a, 'c> App<'a, 'b> {
             vm: vm,
             passed_dt: 0f64,
             paused: false,
-            beeper: beeper,
             keyboard: [0; 16],
         })
     }
@@ -167,6 +161,8 @@ impl<'a, 'b: 'a, 'c> App<'a, 'b> {
         let mut canvas = window.into_canvas().build().unwrap();
         let mut events = ctx.event_pump().unwrap();
         let mut timer = ctx.timer().unwrap();
+        let mut audio = ctx.audio().unwrap();
+        let mut beeper = beep::Beeper::new(&audio)?;
 
         let mut last_ticks = timer.ticks();
 
@@ -197,6 +193,8 @@ impl<'a, 'b: 'a, 'c> App<'a, 'b> {
             self.update(dt)?;
             self.render(&mut canvas);
             last_ticks = current_ticks;
+
+            beeper.set_beeping(self.vm.is_beeping())?;
 
             Ok(Step::Cont)
         };
@@ -248,7 +246,6 @@ impl<'a, 'b: 'a, 'c> App<'a, 'b> {
             }
         }
 
-        self.beeper.set_beeping(self.vm.is_beeping())?;
         self.render_buf.update(dt as f32);
 
         Ok(())

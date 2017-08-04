@@ -20,6 +20,8 @@ use sdl2::keyboard::Keycode;
 use sdl2::rect::Rect;
 use sdl2::event::Event;
 use sdl2::pixels::Color;
+use sdl2::render::Canvas;
+use sdl2::video::Window;
 
 error_chain! {
     foreign_links {
@@ -102,7 +104,18 @@ fn read_rom<P: AsRef<Path>>(path: P) -> Result<Vec<u8>> {
     Ok(rom_buffer)
 }
 
-quick_main!(|| -> Result<()> {
+fn main() {
+    use std::process::exit;
+    match do_run() {
+        Ok(_) => exit(0),
+        Err(e) => {
+            println!("Error: {}", e);
+            exit(1);
+        }
+    }
+}
+
+fn do_run() -> Result<()> {
     #[cfg(not(target_os = "emscripten"))]
     let args = CommandArgs::parse();
 
@@ -121,7 +134,7 @@ quick_main!(|| -> Result<()> {
     })?;
 
     Ok(())
-});
+}
 
 impl<'a, 'b: 'a, 'c> App<'a, 'b> {
     fn new(command_args: &'a CommandArgs, beeper: &'a mut beep::Beeper<'b>) -> Result<App<'a, 'b>> {
@@ -157,14 +170,12 @@ impl<'a, 'b: 'a, 'c> App<'a, 'b> {
 
         let mut last_ticks = timer.ticks();
 
-        let mut main_loop = |done: &mut bool| {
+        let mut main_loop = || {
             for event in events.poll_iter() {
                 match event {
                     Event::Quit { .. } |
                     Event::KeyDown { keycode: Some(Keycode::Escape), .. } => {
-                        *done = true;
-                        println!("bye!");
-                        return;
+                        return Ok(Step::Done);
                     }
 
                     Event::KeyDown { keycode: Some(keycode), .. } => {
@@ -183,9 +194,11 @@ impl<'a, 'b: 'a, 'c> App<'a, 'b> {
 
             let current_ticks = timer.ticks();
             let dt = (current_ticks - last_ticks) as f64 / 1000.0;
-            self.update(dt).unwrap();
+            self.update(dt)?;
             self.render(&mut canvas);
             last_ticks = current_ticks;
+
+            Ok(Step::Cont)
         };
 
         #[cfg(target_os = "emscripten")]
@@ -195,6 +208,8 @@ impl<'a, 'b: 'a, 'c> App<'a, 'b> {
         let looper = DefaultLooper;
 
         looper.start_loop(main_loop);
+
+        println!("loop started");
 
         Ok(())
     }
@@ -239,7 +254,7 @@ impl<'a, 'b: 'a, 'c> App<'a, 'b> {
         Ok(())
     }
 
-    fn render(&mut self, canvas: &mut sdl2::render::Canvas<sdl2::video::Window>) {
+    fn render(&mut self, canvas: &mut Canvas<Window>) {
         let clear_color = Color::RGB(250, 242, 219);
         canvas.set_draw_color(clear_color);
         canvas.clear();
@@ -308,18 +323,23 @@ fn map_keycode(k: Keycode) -> Option<usize> {
     }
 }
 
+enum Step {
+    Cont,
+    Done,
+}
+
 trait Looper {
-    fn start_loop<F>(self, f: F)
+    fn start_loop<F>(self, f: F) -> !
     where
-        F: FnMut(&mut bool);
+        F: FnMut() -> Result<Step>;
 }
 
 struct DefaultLooper;
 
 impl Looper for DefaultLooper {
-    fn start_loop<F>(self, mut f: F)
+    fn start_loop<F>(self, mut f: F) -> !
     where
-        F: FnMut(&mut bool),
+        F: FnMut() -> Result<Step>,
     {
         use std::{thread, time};
 
@@ -327,15 +347,20 @@ impl Looper for DefaultLooper {
         loop {
             let frame_start = time::Instant::now();
 
-            let mut done = false;
-            f(&mut done);
-            if done {
-                break;
-            }
-
-            match frame_interval.checked_sub(frame_start.elapsed()) {
-                Some(delay) => thread::sleep(delay),
-                None => {}
+            match f() {
+                Ok(Step::Cont) => {
+                    match frame_interval.checked_sub(frame_start.elapsed()) {
+                        Some(delay) => thread::sleep(delay),
+                        None => {}
+                    }
+                }
+                Ok(Step::Done) => {
+                    std::process::exit(0);
+                },
+                Err(e) => {
+                    println!("Error: {}", e);
+                    std::process::exit(1);
+                },
             }
         }
     }
@@ -346,6 +371,7 @@ mod emscripten {
     use std::cell::RefCell;
     use std::ptr::null_mut;
     use std::os::raw::{c_int, c_void, c_float};
+    use super::{Step, Result};
 
     #[allow(non_camel_case_types)]
     type em_callback_func = unsafe extern "C" fn();
@@ -391,19 +417,25 @@ mod emscripten {
     pub struct EmscriptenLooper;
 
     impl super::Looper for EmscriptenLooper {
-        fn start_loop<F>(self, mut f: F)
+        fn start_loop<F>(self, mut f: F) -> !
         where
-            F: FnMut(&mut bool),
+            F: FnMut() -> Result<super::Step>,
         {
-            set_main_loop_callback(|| {
-                let mut done = false;
-                f(&mut done);
-                if done {
-                    unsafe {
-                        emscripten_cancel_main_loop();
-                    }
+            set_main_loop_callback(|| match f() {
+                Ok(Step::Cont) => {}
+                Ok(Step::Done) => unsafe {
+                    emscripten_cancel_main_loop();
+                },
+                Err(e) => unsafe {
+                    println!("Error: {}", e);
+                    emscripten_cancel_main_loop();
                 }
-            })
+            });
+
+            // unreachable because simulate_infinite_loop=1 and
+            // emscripten_cancel_main_loop actually doesn't make to
+            // set_main_loop_callback return.
+            unreachable!()
         }
     }
 }

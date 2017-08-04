@@ -7,6 +7,5 @@ authors = ["Sergey Pepyakin <s.pepyakin@gmail.com>"]
 chip8 = { path = "../chip8" }
 sdl2 = "0.30.0"
 error-chain = "0.10.0"
-# portaudio = "0.6.4"
 clap = "2.5.1"
 rand = "0.3"

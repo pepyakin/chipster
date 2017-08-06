@@ -20,7 +20,7 @@ use sdl2::keyboard::Keycode;
 use sdl2::rect::Rect;
 use sdl2::event::Event;
 use sdl2::pixels::Color;
-use sdl2::render::Canvas;
+use sdl2::render::{Canvas, BlendMode};
 use sdl2::video::Window;
 
 error_chain! {
@@ -159,6 +159,8 @@ impl<'a> App<'a> {
             .build()
             .unwrap();
         let mut canvas = window.into_canvas().build().unwrap();
+        canvas.set_blend_mode(BlendMode::Blend);
+
         let mut events = ctx.event_pump().unwrap();
         let mut timer = ctx.timer().unwrap();
         let mut audio = ctx.audio().unwrap();
@@ -271,8 +273,9 @@ impl<'a> App<'a> {
                 match self.render_buf.get_intensity(x, y) {
                     intensity if intensity > 0.0 => {
                         let solid_color = Color::RGBA(5, 31, 38, (intensity * 255.0) as u8);
-                        let rect = Rect::new(dx, dy, w, h);
                         canvas.set_draw_color(solid_color);
+
+                        let rect = Rect::new(dx, dy, w, h);
                         canvas.fill_rect(rect);
                     }
                     _ => {}

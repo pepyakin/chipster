@@ -2,17 +2,20 @@
 #[cfg(target_os = "emscripten")]
 mod emscripten;
 
-use super::{Result};
+use super::Result;
 use std::{thread, process, time};
 
-pub fn start_loop<F>(f: F) -> ! where F: FnMut() -> Result<Step> {
+pub fn start_loop<F>(f: F) -> !
+where
+    F: FnMut() -> Result<Step>,
+{
         #[cfg(target_os = "emscripten")]
-        let looper = emscripten::EmscriptenLooper;
+    let looper = emscripten::EmscriptenLooper;
 
         #[cfg(not(target_os = "emscripten"))]
-        let looper = BlockingLooper;
+    let looper = BlockingLooper;
 
-        looper.start_loop(f)
+    looper.start_loop(f)
 }
 
 pub enum Step {

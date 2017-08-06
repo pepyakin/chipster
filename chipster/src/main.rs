@@ -12,7 +12,7 @@ mod beep;
 mod render;
 mod looper;
 
-use looper::{Step};
+use looper::Step;
 use render::RenderBuf;
 
 use chip8::{Vm, Env};

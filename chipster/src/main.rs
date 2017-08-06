@@ -179,29 +179,27 @@ impl<'a> App<'a> {
             for event in events.poll_iter() {
                 match event {
                     Event::Quit { .. } |
-                    Event::KeyDown { keycode: Some(Keycode::Escape), .. } => {
-                        return Ok(Step::Done);
+                    Event::KeyDown { keycode: Some(Keycode::Escape), .. } => return Ok(Step::Done),
+                    Event::KeyUp { keycode: Some(Keycode::Space), .. } => {
+                        self.paused = !self.paused
                     }
-
-                    Event::KeyDown { keycode: Some(keycode), .. } => {
-                        if let Some(pressed_key) = map_keycode(keycode) {
-                            self.keyboard[pressed_key] = 1;
-                        }
-                    }
-                    Event::KeyUp { keycode: Some(keycode), .. } => {
-                        if let Some(pressed_key) = map_keycode(keycode) {
-                            self.keyboard[pressed_key] = 0;
-                        }
-                    }
+                    Event::KeyDown { keycode: Some(keycode), .. } => self.handle_key(keycode, true),
+                    Event::KeyUp { keycode: Some(keycode), .. } => self.handle_key(keycode, false),
                     _ => {}
                 }
             }
 
+            if self.paused {
+                beeper.set_beeping(false)?;
+                return Ok(Step::Cont);
+            }
+
             let current_ticks = timer.ticks();
             let dt = (current_ticks - last_ticks) as f64 / 1000.0;
+            last_ticks = current_ticks;
+
             self.update(dt)?;
             self.render(&mut canvas);
-            last_ticks = current_ticks;
 
             beeper.set_beeping(self.vm.is_beeping())?;
 
@@ -209,6 +207,12 @@ impl<'a> App<'a> {
         };
 
         looper::start_loop(main_loop)
+    }
+
+    fn handle_key(&mut self, keycode: Keycode, down: bool) {
+        if let Some(pressed_key) = map_keycode(keycode) {
+            self.keyboard[pressed_key] = if down { 1 } else { 0 };
+        }
     }
 
     fn update(&mut self, dt: f64) -> Result<()> {

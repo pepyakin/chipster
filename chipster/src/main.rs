@@ -113,7 +113,7 @@ fn do_run() -> Result<()> {
     let args = CommandArgs {
         rom_file_name: "file.rom".to_string(),
         cycles_per_second: 15000,
-        pixel_decay_time: 0.3,
+        pixel_decay_time: 0.1,
     };
 
     let app = App::new(&args)?;

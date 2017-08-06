@@ -122,9 +122,7 @@ fn do_run() -> Result<()> {
     };
 
     let app = App::new(&args)?;
-    app.run()?;
-
-    Ok(())
+    app.run()?
 }
 
 struct App<'a> {

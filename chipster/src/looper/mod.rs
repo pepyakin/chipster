@@ -3,7 +3,7 @@
 mod emscripten;
 
 use super::{Result};
-use std::{thread, time};
+use std::{thread, process, time};
 
 pub fn start_loop<F>(f: F) -> ! where F: FnMut() -> Result<Step> {
         #[cfg(target_os = "emscripten")]
@@ -33,8 +33,6 @@ impl Looper for BlockingLooper {
     where
         F: FnMut() -> Result<Step>,
     {
-        
-
         let frame_interval = time::Duration::from_millis(16);
         loop {
             let frame_start = time::Instant::now();
@@ -47,11 +45,11 @@ impl Looper for BlockingLooper {
                     }
                 }
                 Ok(Step::Done) => {
-                    ::std::process::exit(0);
+                    process::exit(0);
                 }
                 Err(e) => {
                     println!("Error: {}", e);
-                    ::std::process::exit(1);
+                    process::exit(1);
                 }
             }
         }

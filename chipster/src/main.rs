@@ -233,7 +233,7 @@ impl<'a> App<'a> {
             self.vm.cycle(&mut Env {
                 display,
                 rng: rand::thread_rng(),
-                keyboard: self.keyboard.clone(),
+                keyboard: self.keyboard,
             })?;
 
             self.passed_dt += dt_per_cycle;

@@ -42,9 +42,8 @@ impl Looper for BlockingLooper {
 
             match f() {
                 Ok(Step::Cont) => {
-                    match frame_interval.checked_sub(frame_start.elapsed()) {
-                        Some(delay) => thread::sleep(delay),
-                        None => {}
+                    if let Some(delay) = frame_interval.checked_sub(frame_start.elapsed()) { 
+                        thread::sleep(delay) 
                     }
                 }
                 Ok(Step::Done) => {

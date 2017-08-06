@@ -71,7 +71,7 @@ impl RenderBuf {
 
     fn pixel_intensity_for_age(age: f32) -> f32 {
         // let c = 1.0 - age;
-        let c = -2f32.powf((age - 1.0) * 5.0) + 1.0;
+        let c = -(2f32.powf((age - 1.0) * 5.0) + 1.0);
 
         // clamp
         f32::min(f32::max(0.0, c), 1.0)

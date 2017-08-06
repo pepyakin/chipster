@@ -1,5 +1,4 @@
  #![feature(link_args)]
- #![feature(never_type)]
 
 extern crate clap;
 #[macro_use]
@@ -7,6 +6,7 @@ extern crate error_chain;
 extern crate chip8;
 extern crate rand;
 extern crate sdl2;
+extern crate void;
 
 mod beep;
 mod render;
@@ -14,6 +14,8 @@ mod looper;
 
 use looper::Step;
 use render::RenderBuf;
+
+use void::Void;
 
 use chip8::{Vm, Env};
 
@@ -100,17 +102,13 @@ fn read_rom<P: AsRef<Path>>(path: P) -> Result<Vec<u8>> {
 }
 
 fn main() {
-    use std::process::exit;
-    match do_run() {
-        Ok(_) => exit(0),
-        Err(e) => {
-            println!("Error: {}", e);
-            exit(1);
-        }
-    }
+    use void::ResultVoidErrExt;
+
+    let err = do_run().void_unwrap_err();
+    println!("Error = {}", err);
 }
 
-fn do_run() -> Result<()> {
+fn do_run() -> Result<Void> {
     #[cfg(not(target_os = "emscripten"))]
     let args = CommandArgs::parse();
 
@@ -122,7 +120,8 @@ fn do_run() -> Result<()> {
     };
 
     let app = App::new(&args)?;
-    app.run()?
+
+    app.run()
 }
 
 struct App<'a> {
@@ -156,7 +155,7 @@ impl<'a> App<'a> {
         })
     }
 
-    fn run(mut self) -> Result<!> {
+    fn run(mut self) -> Result<Void> {
         let ctx = sdl2::init().unwrap();
         let video_ctx = ctx.video().unwrap();
         let window = video_ctx

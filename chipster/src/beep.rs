@@ -1,77 +1,51 @@
-use portaudio;
-use portaudio::stream;
+use sdl2::audio::{AudioCallback, AudioSpecDesired, AudioDevice};
+use sdl2::AudioSubsystem;
 
-const CHANNELS: i32 = 2;
-const SAMPLE_RATE: f64 = 44_100.0;
-const FRAMES_PER_BUFFER: u32 = 64;
-const TABLE_SIZE: usize = 200;
-
-pub struct BeeperFactory {
-    portaudio: portaudio::PortAudio,
+struct SquareWave {
+    phase_inc: f32,
+    phase: f32,
+    volume: f32,
 }
 
-impl BeeperFactory {
-    pub fn new() -> ::Result<BeeperFactory> {
-        let p = portaudio::PortAudio::new()?;
-        Ok(BeeperFactory { portaudio: p })
-    }
+impl AudioCallback for SquareWave {
+    type Channel = f32;
 
-    pub fn with_beeper<F>(&mut self, f: F) -> ::Result<()>
-    where
-        F: FnOnce(&mut Beeper) -> ::Result<()>,
-    {
-        let mut beeper = Beeper::new(&mut self.portaudio)?;
-        f(&mut beeper)?;
-        beeper.close()?;
-
-        Ok(())
-    }
-}
-
-pub struct Beeper<'a> {
-    stream: stream::Stream<'a, stream::NonBlocking, stream::Output<f32>>,
-    beeping: bool,
-}
-
-impl<'a> Beeper<'a> {
-    fn new(p: &'a mut portaudio::PortAudio) -> ::Result<Beeper<'a>> {
-        use std::f64::consts::PI;
-
-        let settings = p.default_output_stream_settings(
-            CHANNELS,
-            SAMPLE_RATE,
-            FRAMES_PER_BUFFER,
-        )?;
-
-        let mut sine = [0.0; TABLE_SIZE];
-        for (i, item) in sine.iter_mut().enumerate().take(TABLE_SIZE) {
-            *item = (i as f64 / TABLE_SIZE as f64 * PI * 2.0).sin() as f32;
+    fn callback(&mut self, out: &mut [f32]) {
+        for x in out.iter_mut() {
+            *x = if self.phase >= 0.0 && self.phase <= 0.5 {
+                self.volume
+            } else {
+                -self.volume
+            };
+            self.phase = (self.phase + self.phase_inc) % 1.0;
         }
-        let mut left_phase = 0;
-        let mut right_phase = 0;
+    }
+}
 
-        let callback = move |portaudio::OutputStreamCallbackArgs { buffer, frames, .. }| {
-            let mut idx = 0;
-            for _ in 0..frames {
-                buffer[idx] = sine[left_phase];
-                buffer[idx + 1] = sine[right_phase];
-                left_phase += 1;
-                if left_phase >= TABLE_SIZE {
-                    left_phase -= TABLE_SIZE;
-                }
-                right_phase += 3;
-                if right_phase >= TABLE_SIZE {
-                    right_phase -= TABLE_SIZE;
-                }
-                idx += 2;
-            }
-            portaudio::Continue
+pub struct Beeper {
+    beeping: bool,
+    device: AudioDevice<SquareWave>,
+}
+
+impl Beeper {
+    pub fn new(audio_subsystem: &AudioSubsystem) -> ::Result<Beeper> {
+        let desired_spec = AudioSpecDesired {
+            freq: Some(44100),
+            channels: Some(1),
+            samples: None,
         };
 
-        let stream = p.open_non_blocking_stream(settings, callback)?;
+        let device = audio_subsystem.open_playback(None, &desired_spec, |spec| {
+            SquareWave {
+                phase_inc: 440.0 / spec.freq as f32,
+                phase: 0.0,
+                volume: 0.25,
+            }
+        })?;
+
         Ok(Beeper {
-            stream: stream,
             beeping: false,
+            device,
         })
     }
 
@@ -79,19 +53,11 @@ impl<'a> Beeper<'a> {
         if self.beeping != beeping {
             self.beeping = beeping;
             if beeping {
-                self.stream.start()?;
+                self.device.resume();
             } else {
-                self.stream.stop()?;
+                self.device.pause();
             }
         }
-        Ok(())
-    }
-
-    fn close(mut self) -> ::Result<()> {
-        if self.beeping {
-            self.stream.stop()?;
-        }
-        self.stream.close()?;
         Ok(())
     }
 }

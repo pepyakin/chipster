@@ -5,9 +5,8 @@ authors = ["Sergey Pepyakin <s.pepyakin@gmail.com>"]
 
 [dependencies]
 chip8 = { path = "../chip8" }
+sdl2 = "0.30.0"
 error-chain = "0.10.0"
-portaudio = "0.6.4"
-piston_window = "0.*" 
 clap = "2.5.1"
-rustc-test = "0.1.3"
 rand = "0.3"
+void = "1"

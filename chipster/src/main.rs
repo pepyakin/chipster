@@ -141,7 +141,7 @@ impl<'a> App<'a> {
         let rom_data = read_rom(&command_args.rom_file_name)?;
 
         #[cfg(target_os = "emscripten")]
-        let rom_data = include_bytes!("../../stuff/f8z.ch8") as &[u8];
+        let rom_data = include_bytes!("../../roms/f8z.ch8") as &[u8];
 
         let vm = Vm::with_rom(&rom_data);
 
